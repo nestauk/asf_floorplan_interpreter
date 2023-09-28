@@ -10,11 +10,10 @@ model = YOLO("yolov8n-seg.pt")  # load a pretrained model (recommended for train
 
 
 def train_yolo_model(epoch_number):
-    """"""
-    load_files_for_yolo()
+    """Train YOLO model locally"""
 
     model.train(
         data=(PROJECT_DIR / "inputs/config.yaml"), epochs=epoch_number, imgsz=640
-    )  # change file path
+    )
     # HOW TO SAVE TRAINED MODEL?? IS THERE AN ARG TO DIRECT OUTPUTS? MAYBE PUT OUTPUS IN AN S3 OUTPUT FOLDER
     # AND DIRECT THE WEIGHTS FOR MODELS TO ANOTHER
