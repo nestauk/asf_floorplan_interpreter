@@ -6,6 +6,8 @@ from typing import Optional
 
 import yaml
 
+BUCKET_NAME = "asf-floorplan-interpreter"
+
 
 def get_yaml_config(file_path: Path) -> Optional[dict]:
     """Fetch yaml config and return as dict if it exists."""
