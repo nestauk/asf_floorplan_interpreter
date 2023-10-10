@@ -2,7 +2,18 @@
 ### USE IF A RERUN OF TRAINING - CURRENT MODEL WEIGHTS IN S3 BUCKET
 ## ADD FUNCTION TO SAVE WEIGHTS ON S3
 
+# code to install requirements on batch machine
 import os
+
+try:
+    os.system(
+        "apt-get update && apt-get install -y libgl1-mesa-glx 1> /dev/null"
+    )
+    os.system(
+            f"pip install -r {os.path.dirname(os.path.realpath(__file__))}/flow_reqs.txt 1> /dev/null"
+    )
+except:
+    pass
 
 from metaflow import FlowSpec, project, step, Parameter, batch, conda
 
@@ -58,13 +69,11 @@ from metaflow import FlowSpec, project, step, Parameter, batch, conda
 #     return decorator
 
 
-@project(name="floorplan_yolo")
-# @conda_base(libraries={'ultralytics': '8.0.195'})
 class FloorPlanYolo(FlowSpec):
     config_file = Parameter(
         "config_file",
         help="The config file path for this model",
-        default="asf_floorplan_interpreter/config/window_door_test_config.yaml",
+        default="window_door_test_config.yaml",
     )
 
     @step
@@ -73,7 +82,6 @@ class FloorPlanYolo(FlowSpec):
 
         self.next(self.load)
 
-    @conda(libraries={"pyyaml": "5.3.1"})
     @step
     def load(self):
         import yaml
@@ -92,23 +100,24 @@ class FloorPlanYolo(FlowSpec):
         self.next(self.train)
 
     @batch(gpu=1, memory=60000, cpu=6, queue="job-queue-GPU-nesta-metaflow")
-    # @conda(libraries={"ultralytics": "8.0.195"}) # For some reason this doesnt work
-    # @pip(libraries={'ultralytics': '8.0.195'})
     @step
     def train(self):
-        # from ultralytics import YOLO
+        from ultralytics import YOLO
+        import torch
+        print(torch.cuda.is_available())
+        torch.cuda.set_device(0)
 
-        # self.model = YOLO(self.yolo_pretrained_model_name)
+        self.model = YOLO(self.yolo_pretrained_model_name)
 
-        # results = self.model.train(
-        #     data=self.yolo_config_file,
-        #     epochs=self.epochs,
-        #     imgsz=self.imgsz,
-        #     batch=self.batch,
-        #     device="gpu",
-        #     patience=self.patience,
-        #     project=self.project_name
-        # )
+        results = self.model.train(
+            data=self.yolo_config_file,
+            epochs=self.epochs,
+            imgsz=self.imgsz,
+            batch=self.batch,
+            device=0,
+            patience=self.patience,
+            project=self.project_name
+        )
         results = 2
 
         self.next(self.save)
