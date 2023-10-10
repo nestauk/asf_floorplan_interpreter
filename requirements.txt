@@ -1,6 +1,6 @@
 numpy
 pandas
-boto3
 ultralytics
 sklearn
-git+https://github.com/nestauk/nesta_ds_utils.git
+metaflow==2.7.14
+nesta_ds_utils@git+https://github.com/nestauk/nesta_ds_utils.git#egg=nesta_ds_utils[s3]

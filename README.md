@@ -7,6 +7,8 @@
 - Run `make install` to configure the development environment:
   - Setup the conda environment
   - Configure `pre-commit`
+  - Set-up Metaflow `export METAFLOW_PROFILE=ds-cookiecutter` and `direnv reload`
+  - For using batch and the pip decorator you need `export METAFLOW_DEFAULT_ENVIRONMENT=preinstall`
 
 ## Contributor guidelines
 
