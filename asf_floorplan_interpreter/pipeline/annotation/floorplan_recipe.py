@@ -52,7 +52,7 @@ def classify_images(dataset, source, label):
 
 
 @prodigy.recipe("classify-everything-images")
-def classify_images(dataset, source, label):
+def classify_everything_images(dataset, source, label):
     window_door_model = load_model("outputs/models/windows-doors-model/best.pt")
     room_model = load_model("outputs/models/rooms-model/best.pt")
 
@@ -77,5 +77,47 @@ def classify_images(dataset, source, label):
         "view_id": "image_manual",
         "config": {
             "labels": label.split(","),
+        },
+    }
+
+
+OPTIONS = [
+    {"id": 0, "text": "Ray Ban Wayfarer (Original)"},
+    {"id": 1, "text": "Ray Ban Wayfarer (New)"},
+    {"id": 2, "text": "Ray Ban Clubmaster (Classic)"},
+    {"id": 3, "text": "Ray Ban Aviator (Classic)"},
+    {"id": -1, "text": "Other model"},
+]
+
+
+# This isnt working as I'd like yet
+@prodigy.recipe("room-type")
+def classify_room_type(dataset, source, label):
+    room_model = load_model("outputs/models/rooms-model/best.pt")
+
+    # OPTIONS =
+
+    def predict(stream, room_model=room_model):
+        for eg in stream:
+            room_results = room_model(eg["image"])
+            span_predictions = yolo_2_segments(room_results)
+            for span_prediction in span_predictions:
+                eg["spans"] = [span_prediction]
+                eg["options"] = OPTIONS
+                yield eg
+
+    stream = JSONL(source)
+
+    stream = predict(stream, room_model=room_model)
+
+    return {
+        "dataset": dataset,
+        "stream": stream,
+        "view_id": "choice",
+        "config": {
+            "choice_style": "single",  # or "multiple"
+            # Automatically accept and submit the answer if an option is
+            # selected (only available for single-choice tasks)
+            "choice_auto_accept": True,
         },
     }
