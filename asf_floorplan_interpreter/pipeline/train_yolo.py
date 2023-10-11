@@ -6,11 +6,9 @@
 import os
 
 try:
+    os.system("apt-get update && apt-get install -y libgl1-mesa-glx 1> /dev/null")
     os.system(
-        "apt-get update && apt-get install -y libgl1-mesa-glx 1> /dev/null"
-    )
-    os.system(
-            f"pip install -r {os.path.dirname(os.path.realpath(__file__))}/flow_reqs.txt 1> /dev/null"
+        f"pip install -r {os.path.dirname(os.path.realpath(__file__))}/flow_reqs.txt 1> /dev/null"
     )
 except:
     pass
@@ -86,6 +84,10 @@ class FloorPlanYolo(FlowSpec):
     def load(self):
         import yaml
 
+        os.system(
+            "aws s3 cp --recursive s3://asf-floorplan-interpreter/data/roboflow_data/ datasets/data/roboflow_data"
+        )
+
         with open(self.config_file, "r") as f:
             self.config = yaml.load(f, Loader=yaml.FullLoader)
 
@@ -104,6 +106,7 @@ class FloorPlanYolo(FlowSpec):
     def train(self):
         from ultralytics import YOLO
         import torch
+
         print(torch.cuda.is_available())
         torch.cuda.set_device(0)
 
@@ -116,21 +119,17 @@ class FloorPlanYolo(FlowSpec):
             batch=self.batch,
             device=0,
             patience=self.patience,
-            project=self.project_name
+            project=self.project_name,
         )
-        results = 2
-
-        self.next(self.save)
-
-    @step
-    def save(self):
-        self.r = 2 + 2
 
         self.next(self.end)
 
     @step
     def end(self):
         """End flow"""
+
+        os.system("rm -rf datasets/data/roboflow_data")
+
         pass
 
 

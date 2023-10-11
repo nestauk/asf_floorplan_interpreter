@@ -31,9 +31,6 @@ Warning: ultralytics requires the parent data folder to be called "datasets".
 Train: YOLOV8n (smallest) for instance segmentation (docs)
 
 ```
-python asf_floorplan_interpreter/pipeline/train_yolo.py --environment=conda --datastore=s3 --config_file=asf_floorplan_interpreter/config/window_door_test_config.yaml run
-
-
---environment=preinstall
-
+cd asf_floorplan_interpreter/pipeline/
+python train_yolo.py --datastore=s3 --package-suffixes=.txt,.yaml,.jpg run
 ```
