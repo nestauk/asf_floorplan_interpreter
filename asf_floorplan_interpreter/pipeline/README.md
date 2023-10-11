@@ -32,5 +32,5 @@ Train: YOLOV8n (smallest) for instance segmentation (docs)
 
 ```
 cd asf_floorplan_interpreter/pipeline/
-python train_yolo.py --datastore=s3 --package-suffixes=.txt,.yaml,.jpg run
+python train_yolo.py --package-suffixes=.txt,.yaml,.jpg --datastore=s3 run --config_file window_door_config.yaml
 ```

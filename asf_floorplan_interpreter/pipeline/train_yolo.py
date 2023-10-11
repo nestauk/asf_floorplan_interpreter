@@ -84,10 +84,6 @@ class FloorPlanYolo(FlowSpec):
     def load(self):
         import yaml
 
-        os.system(
-            "aws s3 cp --recursive s3://asf-floorplan-interpreter/data/roboflow_data/ datasets/data/roboflow_data"
-        )
-
         with open(self.config_file, "r") as f:
             self.config = yaml.load(f, Loader=yaml.FullLoader)
 
@@ -109,10 +105,12 @@ class FloorPlanYolo(FlowSpec):
 
         print(torch.cuda.is_available())
         torch.cuda.set_device(0)
+        os.system(
+            "aws s3 cp --recursive s3://asf-floorplan-interpreter/data/roboflow_data/ datasets/data/roboflow_data"
+        )
+        model = YOLO(self.yolo_pretrained_model_name)
 
-        self.model = YOLO(self.yolo_pretrained_model_name)
-
-        results = self.model.train(
+        results = model.train(
             data=self.yolo_config_file,
             epochs=self.epochs,
             imgsz=self.imgsz,
@@ -122,13 +120,18 @@ class FloorPlanYolo(FlowSpec):
             project=self.project_name,
         )
 
+        model.export()
+        os.system(
+            f"aws s3 cp metaflow_test_project/train/weights/best.pt s3://asf-floorplan-interpreter/{self.config_file.split('.yaml')[0]}/"
+        )
+        os.system(
+            f"aws s3 cp yolo_config.yaml s3://asf-floorplan-interpreter/{self.config_file.split('.yaml')[0]}/"
+        )
         self.next(self.end)
 
     @step
     def end(self):
         """End flow"""
-
-        os.system("rm -rf datasets/data/roboflow_data")
 
         pass
 
