@@ -97,7 +97,13 @@ class FloorPlanYolo(FlowSpec):
 
         self.next(self.train)
 
-    @batch(gpu=1, memory=60000, cpu=6, queue="job-queue-GPU-nesta-metaflow")
+    @batch(
+        gpu=1,
+        memory=60000,
+        cpu=6,
+        queue="job-queue-GPU-nesta-metaflow",
+        shared_memory=500,
+    )
     @step
     def train(self):
         from ultralytics import YOLO
@@ -106,7 +112,7 @@ class FloorPlanYolo(FlowSpec):
         print(torch.cuda.is_available())
         torch.cuda.set_device(0)
         os.system(
-            "aws s3 cp --recursive s3://asf-floorplan-interpreter/data/roboflow_data/ datasets/data/roboflow_data"
+            "aws s3 sync s3://asf-floorplan-interpreter/data/roboflow_data/ datasets/data/roboflow_data"
         )
         model = YOLO(self.yolo_pretrained_model_name)
 
@@ -122,10 +128,10 @@ class FloorPlanYolo(FlowSpec):
 
         model.export()
         os.system(
-            f"aws s3 cp metaflow_test_project/train/weights/best.pt s3://asf-floorplan-interpreter/{self.config_file.split('.yaml')[0]}/"
+            f"aws s3 cp {self.project_name}/train/weights/best.pt s3://asf-floorplan-interpreter/{self.config_file.split('.yaml')[0]}/"
         )
         os.system(
-            f"aws s3 cp yolo_config.yaml s3://asf-floorplan-interpreter/{self.config_file.split('.yaml')[0]}/"
+            f"aws s3 cp {self.yolo_config_file} s3://asf-floorplan-interpreter/{self.config_file.split('.yaml')[0]}/"
         )
         self.next(self.end)
 
