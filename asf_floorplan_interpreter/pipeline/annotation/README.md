@@ -25,48 +25,32 @@ python asf_floorplan_interpreter/pipeline/annotation/create_images_data.py
 
 This will create the file `asf_floorplan_interpreter/pipeline/annotation/floorplans.jsonl`.
 
-## Rooms:
+## Windows, doors and stairs:
 
-Annotate bounding boxes for each:
+Since we have a model for identifying windows and doors, and its a long annotation task to tag every one, we can use the model to help us label.
 
-```
-prodigy image.manual room_type_dataset asf_floorplan_interpreter/pipeline/annotation/floorplans.jsonl --loader jsonl --label BEDROOM,KITCHEN,BATHROOM,LIVING,STAIRCASE,OTHER --no-fetch
-
-```
+Manually correct the original model for doors and windows, and label stairs from scratch:
 
 ```
-prodigy db-out room_type_dataset > asf_floorplan_interpreter/pipeline/annotation/prodigy_labelled/room_type.jsonl
-
-```
-
-Use this to train a model.
-
-## Windows and doors:
-
-Since we have a model for this and its a long annotation task to tag every one, we can use the model to help us label.
-
-Manually correct Adeola's original model for doors and windows?
-
-```
-prodigy classify-images window_doors_dataset asf_floorplan_interpreter/pipeline/annotation/floorplans.jsonl WINDOW,DOOR -F asf_floorplan_interpreter/pipeline/annotation/floorplan_recipe.py
+prodigy classify-window-door window_doors_staircase_dataset asf_floorplan_interpreter/pipeline/annotation/floorplans.jsonl WINDOW,DOOR,STAIRCASE -F asf_floorplan_interpreter/pipeline/annotation/floorplan_recipe.py
 
 ```
 
 ```
-prodigy db-out window_doors_dataset > asf_floorplan_interpreter/pipeline/annotation/prodigy_labelled/window_door.jsonl
+prodigy db-out window_doors_staircase_dataset > asf_floorplan_interpreter/pipeline/annotation/prodigy_labelled/window_door_staircase.jsonl
 ```
 
-## Everything model:
+## Room model:
 
-This will use the pretrained models to help label ROOM, WINDOW, DOOR.
-
-```
-prodigy classify-everything-images room_window_door_dataset asf_floorplan_interpreter/pipeline/annotation/floorplans.jsonl WINDOW,DOOR,ROOM,OTHER_ROOM,OTHER_DOOR -F asf_floorplan_interpreter/pipeline/annotation/floorplan_recipe.py
+This will use the pretrained model to help label ROOM.
 
 ```
+prodigy classify-rooms room_dataset asf_floorplan_interpreter/pipeline/annotation/floorplans.jsonl ROOM -F asf_floorplan_interpreter/pipeline/annotation/floorplan_recipe.py
 
 ```
-prodigy db-out room_window_door_dataset > asf_floorplan_interpreter/pipeline/annotation/prodigy_labelled/room_window_door.jsonl
+
+```
+prodigy db-out room_dataset > asf_floorplan_interpreter/pipeline/annotation/prodigy_labelled/room_dataset.jsonl
 ```
 
 ## Room type model:
@@ -74,12 +58,12 @@ prodigy db-out room_window_door_dataset > asf_floorplan_interpreter/pipeline/ann
 Use the pretrained model to identify rooms, then annotation which room type they are
 
 ```
-prodigy room-type room_type_dataset_2 asf_floorplan_interpreter/pipeline/annotation/floorplans.jsonl BEDROOM,KITCHEN,BATHROOM,LIVING,STAIRCASE,OTHER -F asf_floorplan_interpreter/pipeline/annotation/floorplan_recipe.py
+prodigy room-type room_type_dataset asf_floorplan_interpreter/pipeline/annotation/floorplans.jsonl BEDROOM,KITCHEN,BATHROOM,LIVING,DINING,GARAGE,CONSERVATORY -F asf_floorplan_interpreter/pipeline/annotation/floorplan_recipe.py
 
 ```
 
 ```
-prodigy db-out room_type_dataset_2 > asf_floorplan_interpreter/pipeline/annotation/prodigy_labelled/room_type_dataset_2.jsonl
+prodigy db-out room_type_dataset > asf_floorplan_interpreter/pipeline/annotation/prodigy_labelled/room_type_dataset.jsonl
 ```
 
 ## Clean up

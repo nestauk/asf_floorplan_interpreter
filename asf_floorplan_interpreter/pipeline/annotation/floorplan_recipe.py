@@ -26,8 +26,8 @@ def yolo_2_segments(results):
     return segments
 
 
-@prodigy.recipe("classify-images")
-def classify_images(dataset, source, label):
+@prodigy.recipe("classify-window-door")
+def classify_window_door(dataset, source, label):
     model = load_model("outputs/models/windows-doors-model/best.pt")
 
     def predict(stream, model=model):
@@ -81,13 +81,30 @@ def classify_everything_images(dataset, source, label):
     }
 
 
-OPTIONS = [
-    {"id": 0, "text": "Ray Ban Wayfarer (Original)"},
-    {"id": 1, "text": "Ray Ban Wayfarer (New)"},
-    {"id": 2, "text": "Ray Ban Clubmaster (Classic)"},
-    {"id": 3, "text": "Ray Ban Aviator (Classic)"},
-    {"id": -1, "text": "Other model"},
-]
+@prodigy.recipe("classify-rooms")
+def classify_rooms(dataset, source, label):
+    room_model = load_model("outputs/models/rooms-model/best.pt")
+
+    def predict(stream, room_model=room_model):
+        for eg in stream:
+            room_results = room_model(eg["image"])
+            span_predictions = yolo_2_segments(room_results)
+
+            eg["spans"] = span_predictions
+            yield eg
+
+    stream = JSONL(source)
+
+    stream = predict(stream, room_model=room_model)
+
+    return {
+        "dataset": dataset,
+        "stream": stream,
+        "view_id": "image_manual",
+        "config": {
+            "labels": label.split(","),
+        },
+    }
 
 
 # This isnt working as I'd like yet
@@ -95,7 +112,10 @@ OPTIONS = [
 def classify_room_type(dataset, source, label):
     room_model = load_model("outputs/models/rooms-model/best.pt")
 
-    # OPTIONS =
+    OPTIONS = [
+        {"id": i, "text": label_name} for i, label_name in enumerate(label.split(","))
+    ]
+    OPTIONS += [{"id": -1, "text": "Other"}]
 
     def predict(stream, room_model=room_model):
         for eg in stream:
