@@ -47,6 +47,7 @@ def classify_window_door(dataset, source, label):
         "view_id": "image_manual",
         "config": {
             "labels": label.split(","),
+            "port": 8501,
         },
     }
 
