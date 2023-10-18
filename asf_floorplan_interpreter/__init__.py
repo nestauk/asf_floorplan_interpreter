@@ -4,6 +4,8 @@ import logging.config
 from pathlib import Path
 from typing import Optional
 
+BUCKET_NAME = "asf-floorplan-interpreter"
+
 import yaml
 
 
