@@ -6,6 +6,7 @@ from asf_floorplan_interpreter.getters.get_data import (
     load_s3_data,
 )
 from asf_floorplan_interpreter import BUCKET_NAME
+import os
 
 
 def scale_points_by_hw(lst, width, height):
@@ -47,26 +48,43 @@ def convert_prod_to_yolo(prod_label, object_to_class_dict):
     return final_format
 
 
-if __name__ == "__main__":
-    file_name = "data/annotation/prodigy_labelled/181023/room_dataset.jsonl"
-
-    object_to_class_dict = {
-        "WINDOW": 5,
-        "DOOR": 0,
-        "OTHER_ROOM": 3,
-        "ROOM": 3,
-        "OTHER_DOOR": 0,
-    }
-
+def convert_prodigy_file(file_name, object_to_class_dict, output_folder_name):
     data = load_prodigy_jsonl_s3_data(BUCKET_NAME, file_name)
 
     for prod_label in data:
-        yolo_label = convert_prod_to_yolo(prod_label, object_to_class_dict)
-        image_name = prod_label["image"].split("/")[-1].split(".")[0]
-        # Output to text file - one file per image
-        save_to_s3(
-            BUCKET_NAME,
-            image_name,
-            f"data/annotation/prodigy_labelled/181023/room_dataset_yolo_formatted/{image_name}.txt",
-            verbose=False,
-        )
+        if prod_label["answer"] == "accept":
+            yolo_label = convert_prod_to_yolo(prod_label, object_to_class_dict)
+            image_name = prod_label["image"].split("/")[-1].split(".")[0]
+            # Output to text file - one file per image
+            save_to_s3(
+                BUCKET_NAME,
+                image_name,
+                os.path.join(output_folder_name, f"{image_name}.txt"),
+                verbose=False,
+            )
+
+
+if __name__ == "__main__":
+    ## Process the room dataset
+
+    file_name = "data/annotation/prodigy_labelled/181023/room_dataset.jsonl"
+    output_folder_name = (
+        "data/annotation/prodigy_labelled/181023/room_dataset_yolo_formatted/"
+    )
+    object_to_class_dict = {
+        "ROOM": 0,
+    }
+    convert_prodigy_file(file_name, object_to_class_dict, output_folder_name)
+
+    ## Process the window/door/staircase dataset
+
+    file_name = "data/annotation/prodigy_labelled/181023/window_door_staircase.jsonl"
+    output_folder_name = (
+        "data/annotation/prodigy_labelled/181023/window_door_staircase_yolo_formatted/"
+    )
+    object_to_class_dict = {
+        "WINDOW": 0,
+        "DOOR": 1,
+        "STAIRCASE": 2,
+    }
+    convert_prodigy_file(file_name, object_to_class_dict, output_folder_name)
