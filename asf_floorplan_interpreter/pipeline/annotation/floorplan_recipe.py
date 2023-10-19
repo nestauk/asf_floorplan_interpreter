@@ -48,6 +48,11 @@ def classify_window_door(dataset, source, label):
         "config": {
             "labels": label.split(","),
             "port": 8501,
+            "custom_theme": {
+                "labels": {"WINDOW": "blue", "DOOR": "red", "STAIRCASE": "yellow"}
+            },
+            "buttons": ["accept", "ignore", "undo"],
+            "keymap_by_label": {"WINDOW": "w", "DOOR": "d", "STAIRCASE": "s"},
         },
     }
 
