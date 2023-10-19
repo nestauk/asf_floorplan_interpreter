@@ -15,7 +15,7 @@ class FloorPlanYolo(FlowSpec):
     config_file = Parameter(
         "config_file",
         help="The config file path for this model",
-        default="window_door_test_config.yaml",
+        default="configs/window_door_test_config.yaml",
     )
 
     @step
@@ -39,6 +39,12 @@ class FloorPlanYolo(FlowSpec):
         self.imgsz = self.config["imgsz"]
         self.project_name = self.config["project_name"]
 
+        with open(self.yolo_config_file, "r") as f:
+            yolo_config = yaml.load(f, Loader=yaml.FullLoader)
+        self.yolo_file_path = yolo_config["path"]
+        if self.yolo_file_path[-1] == "/":
+            self.yolo_file_path = self.yolo_file_path[:-1]
+
         self.next(self.train)
 
     @batch(
@@ -56,7 +62,7 @@ class FloorPlanYolo(FlowSpec):
         print(torch.cuda.is_available())
         torch.cuda.set_device(0)
         os.system(
-            "aws s3 sync s3://asf-floorplan-interpreter/data/roboflow_data/ datasets/data/roboflow_data"
+            f"aws s3 sync s3://asf-floorplan-interpreter/{self.yolo_file_path}/ datasets/{self.yolo_file_path}"
         )
         model = YOLO(self.yolo_pretrained_model_name)
 
@@ -70,12 +76,13 @@ class FloorPlanYolo(FlowSpec):
             project=self.project_name,
         )
 
+        model_output_folder = self.config_file.split("configs/")[1].split(".yaml")[0]
         model.export()
         os.system(
-            f"aws s3 cp {self.project_name}/train/weights/best.pt s3://asf-floorplan-interpreter/{self.config_file.split('.yaml')[0]}/"
+            f"aws s3 sync {self.project_name}/train/ s3://asf-floorplan-interpreter/models/{model_output_folder}/"
         )
         os.system(
-            f"aws s3 cp {self.yolo_config_file} s3://asf-floorplan-interpreter/{self.config_file.split('.yaml')[0]}/"
+            f"aws s3 cp {self.yolo_config_file} s3://asf-floorplan-interpreter/models/{model_output_folder}/"
         )
         self.next(self.end)
 
