@@ -1,17 +1,8 @@
-# path: '/content/drive/MyDrive/econest/data/'
 path: "data/roboflow_data/"
 train: images/train
 val: images/val
 test: images/test
-save_dir: "liz_test_save_dir/"
-
-# nc: 1
-# names: ['ROOM']
-# 0
-
-# nc: 2
-# names: ['DOOR', 'WINDOW']
-# # 0 1
+save_dir: "roboflow_save_dir/"
 
 nc: 6
 names: ["DOOR", "DOUBLE DOOR", "FOLDING DOOR", "ROOM", "SLIDING DOOR", "WINDOW"]

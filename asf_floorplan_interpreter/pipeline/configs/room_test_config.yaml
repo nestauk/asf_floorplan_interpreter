@@ -1,7 +1,7 @@
-yolo_config_file: "yolo_config.yaml"
+yolo_config_file: "configs/yolo_room_config.yaml"
 yolo_pretrained_model_name: "yolov8n-seg.pt"
 epochs: 3
 batch: 16
 patience: 3
-project_name: "metaflow_test_project"
+project_name: "room_test_project"
 imgsz: 120

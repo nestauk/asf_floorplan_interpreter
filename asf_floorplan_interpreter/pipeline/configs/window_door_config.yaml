@@ -1,4 +1,4 @@
-yolo_config_file: "yolo_config.yaml"
+yolo_config_file: "configs/yolo_window_door_config.yaml"
 yolo_pretrained_model_name: "yolov8n-seg.pt"
 epochs: 50
 batch: 16
