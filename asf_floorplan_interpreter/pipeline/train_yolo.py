@@ -1,5 +1,6 @@
 import os
 
+# This will always fail but it's needed for the batch step
 try:
     os.system("apt-get update && apt-get install -y libgl1-mesa-glx 1> /dev/null")
     os.system(

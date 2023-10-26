@@ -19,10 +19,10 @@ def create_results_dict(img, model):
     return {class_names[k]: v for k, v in class_pred_count.items()}
 
 
-def predict_image(directory, img):
-    "Collects model and applies to chosen images"
+def predict_image(local_directory, img):
+    "Collects model from a local location and applies to chosen images"
     model = load_model(
-        (PROJECT_DIR / f"{directory}")
+        (PROJECT_DIR / f"{local_directory}")
     )  # e.g. directory = "outputs/models/rooms-model/best.pt"
 
     return create_results_dict(img, model)

@@ -1,4 +1,4 @@
-## Reain a model to recognise doors and windows
+## Train a model to recognise doors and windows
 
 ## :file_folder: Roboflow data
 
@@ -61,3 +61,19 @@ e.g.
 ```
 python train_yolo.py --package-suffixes=.txt,.yaml,.jpg --datastore=s3 run --config_file configs/roboflow_test_config.yaml
 ```
+
+The Yolo configs are in a specific format and include two variables which need setting according to your task. For example in the roboflow config:
+
+```
+path: "data/roboflow_data/"
+train: images/train
+val: images/val
+test: images/test
+save_dir: "roboflow_save_dir/"
+
+nc: 6
+names: ["DOOR", "DOUBLE DOOR", "FOLDING DOOR", "ROOM", "SLIDING DOOR", "WINDOW"]
+
+```
+
+we provide the paths to the training, test and validation sets (i.e. `data/roboflow_data/images/train` etc), as well as telling YOLO we want to train 6 class (`nc` = number of classes) and the names of these 6 classes (`names`). Yolo will then map each class to a number. The names of the classes should map to what's in the training datasets - although the classes you train can be a subset of all the classes labelled.
