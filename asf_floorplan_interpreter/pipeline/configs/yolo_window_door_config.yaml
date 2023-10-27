@@ -1,8 +1,8 @@
-path: "data/annotation/prodigy_labelled/191023/window_door_staircase_yolo_formatted/"
+path: "data/annotation/prodigy_labelled/191023/yolo_formatted/window_door_prodigy_plus_roboflow/"
 train: images/train
 val: images/val
 test: images/test
 save_dir: "window_door_save_dir/"
 
-nc: 3
-names: ["WINDOW", "DOOR", "STAIRCASE"]
+nc: 2
+names: ["WINDOW", "DOOR"]

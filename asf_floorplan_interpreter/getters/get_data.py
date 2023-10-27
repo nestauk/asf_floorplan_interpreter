@@ -7,6 +7,7 @@ import json
 
 import boto3
 from fnmatch import fnmatch
+import yaml
 
 # def get_data_for_model(s3_directory):
 #     """Download data for training model (locally)"""
@@ -14,6 +15,7 @@ from fnmatch import fnmatch
 #     download_directory_from_s3(
 #         BUCKET_NAME, s3_directory, (PROJECT_DIR / "inputs/data/roboflow_data/")
 #     )
+
 
 def get_config():
     """Download model config file"""
@@ -24,6 +26,7 @@ def load_files_for_yolo():
     """Loads relevant files for training the YOLO model"""
     get_data_for_model("data/roboflow_data/")
     get_config()
+
 
 def get_s3_resource():
     s3 = boto3.resource("s3")
@@ -94,7 +97,29 @@ def load_s3_data(bucket_name, file_name):
     elif fnmatch(file_name, "*.pkl") or fnmatch(file_name, "*.pickle"):
         file = obj.get()["Body"].read().decode()
         return pickle.loads(file)
+    elif fnmatch(file_name, "*.txt"):
+        return obj.get()["Body"].read().decode().split("\n")
     else:
         logger.error(
             'Function not supported for file type other than "*.csv", "*.jsonl.gz", "*.jsonl", or "*.json"'
         )
+
+
+def get_s3_data_paths(bucket_name, root):
+    """
+    Get all paths to particular file types in a S3 root location
+
+    bucket_name: The S3 bucket name
+    root: The root folder to look for files in
+    file_types: List of file types to look for, or one
+    """
+    s3 = get_s3_resource()
+
+    bucket = s3.Bucket(bucket_name)
+
+    s3_keys = []
+    for files in bucket.objects.filter(Prefix=root):
+        key = files.key
+        s3_keys.append(key)
+
+    return s3_keys
