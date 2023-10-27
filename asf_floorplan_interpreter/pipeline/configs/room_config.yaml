@@ -1,0 +1,7 @@
+yolo_config_file: "configs/yolo_room_config.yaml"
+yolo_pretrained_model_name: "yolov8n-seg.pt"
+epochs: 50
+batch: 16
+patience: 3
+project_name: "room_project"
+imgsz: 640

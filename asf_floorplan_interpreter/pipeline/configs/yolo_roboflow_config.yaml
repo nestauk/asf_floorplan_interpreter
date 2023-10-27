@@ -1,0 +1,9 @@
+path: "data/roboflow_data/"
+train: images/train
+val: images/val
+test: images/test
+save_dir: "roboflow_save_dir/"
+
+nc: 6
+names: ["DOOR", "DOUBLE DOOR", "FOLDING DOOR", "ROOM", "SLIDING DOOR", "WINDOW"]
+# 0 1 2 3 4 5

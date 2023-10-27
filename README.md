@@ -7,6 +7,8 @@
 - Run `make install` to configure the development environment:
   - Setup the conda environment
   - Configure `pre-commit`
+  - Set-up Metaflow `export METAFLOW_PROFILE=floorplan` and `direnv reload`
+  - Make sure your `METAFLOW_USER` name has no fullstops in.
 
 ## Contributor guidelines
 

@@ -15,7 +15,6 @@ from fnmatch import fnmatch
 #         BUCKET_NAME, s3_directory, (PROJECT_DIR / "inputs/data/roboflow_data/")
 #     )
 
-
 def get_config():
     """Download model config file"""
     download_file("data/config.yaml", BUCKET_NAME, (PROJECT_DIR / "inputs/config.yaml"))
@@ -25,7 +24,6 @@ def load_files_for_yolo():
     """Loads relevant files for training the YOLO model"""
     get_data_for_model("data/roboflow_data/")
     get_config()
-
 
 def get_s3_resource():
     s3 = boto3.resource("s3")
