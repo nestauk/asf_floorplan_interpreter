@@ -37,16 +37,18 @@ def convert_prod_to_yolo(prod_label, object_to_class_dict):
 
     for i in range(0, len(prod_label["spans"])):
         # Get the class and output the corresponding number
-        class_no = object_to_class_dict[prod_label["spans"][i]["label"]]
+        # Don't include this class in the output if it's not in object_to_class_dict
+        if prod_label["spans"][i]["label"] in object_to_class_dict:
+            class_no = object_to_class_dict[prod_label["spans"][i]["label"]]
 
-        # Get the polygon points, scale by the width and height of the image
-        points = prod_label["spans"][i]["points"]
-        scaled_list = scale_points_by_hw(points, w, h)
-        flat_list = [item for sublist in scaled_list for item in sublist]
+            # Get the polygon points, scale by the width and height of the image
+            points = prod_label["spans"][i]["points"]
+            scaled_list = scale_points_by_hw(points, w, h)
+            flat_list = [item for sublist in scaled_list for item in sublist]
 
-        # Combine scaled points with class number
-        total_shape = [class_no] + flat_list
-        output_list.append(total_shape)
+            # Combine scaled points with class number
+            total_shape = [class_no] + flat_list
+            output_list.append(total_shape)
 
     # Flatten from list to string
     final_format = [" ".join(map(str, item)) for item in output_list]
@@ -54,13 +56,13 @@ def convert_prod_to_yolo(prod_label, object_to_class_dict):
     return final_format
 
 
-def convert_prodigy_file(file_name, object_to_class_dict):
+def convert_prodigy_file(file_name, object_to_class_dict, use_all=False):
     data = load_prodigy_jsonl_s3_data(BUCKET_NAME, file_name)
 
     yolo_labels = {}
     prod_time_test = {}
     for prod_label in data:
-        if prod_label["answer"] == "accept":
+        if use_all or prod_label["answer"] == "accept":
             yolo_label = convert_prod_to_yolo(prod_label, object_to_class_dict)
             image_url = prod_label["image"]
             # Use the latest label if an image has come up more than once
@@ -123,7 +125,8 @@ def split_save_data(yolo_labels, train_prop, test_prop, output_folder_name):
 
 
 if __name__ == "__main__":
-    prodigy_labelled_date = "191023"
+    prodigy_labelled_date = "301023"
+    prodigy_labelled_dir = f"data/annotation/prodigy_labelled/{prodigy_labelled_date}"
 
     train_prop = 0.6
     test_prop = 0.2
@@ -133,11 +136,9 @@ if __name__ == "__main__":
 
     print("Process the room dataset")
 
-    prod_file_name = (
-        f"data/annotation/prodigy_labelled/{prodigy_labelled_date}/room_dataset.jsonl"
-    )
-    yolo_data_folder_name = (
-        f"data/annotation/prodigy_labelled/{prodigy_labelled_date}/room_yolo_formatted/"
+    prod_file_name = os.path.join(prodigy_labelled_dir, "room_dataset.jsonl")
+    yolo_data_folder_name = os.path.join(
+        prodigy_labelled_dir, "yolo_formatted/room_yolo_formatted"
     )
     object_to_class_dict = {
         "ROOM": 0,
@@ -147,8 +148,10 @@ if __name__ == "__main__":
 
     print("Process the window/door/staircase dataset")
 
-    prod_file_name = f"data/annotation/prodigy_labelled/{prodigy_labelled_date}/window_door_staircase.jsonl"
-    yolo_data_folder_name = f"data/annotation/prodigy_labelled/{prodigy_labelled_date}/window_door_staircase_yolo_formatted/"
+    prod_file_name = os.path.join(prodigy_labelled_dir, "window_door_staircase.jsonl")
+    yolo_data_folder_name = os.path.join(
+        prodigy_labelled_dir, "yolo_formatted/window_door_staircase_yolo_formatted"
+    )
     object_to_class_dict = {
         "WINDOW": 0,
         "DOOR": 1,
@@ -159,12 +162,17 @@ if __name__ == "__main__":
         window_door_yolo_labels, train_prop, test_prop, yolo_data_folder_name
     )
 
-    # Original data was 122 annotations, filtered for accepted labels and deduplicated gives us 105 annotations
-    # Saving 63 image in the training set
-    # Saving 21 image in the test set
-    # Saving 21 image in the val set
-    # Process the window/door/staircase dataset
-    # Original data was 119 annotations, filtered for accepted labels and deduplicated gives us 102 annotations
-    # Saving 61 image in the training set
-    # Saving 20 image in the test set
-    # Saving 21 image in the val set
+    print("Process just windows and doors dataset")
+
+    prod_file_name = os.path.join(prodigy_labelled_dir, "window_door_staircase.jsonl")
+    yolo_data_folder_name = os.path.join(
+        prodigy_labelled_dir, "yolo_formatted/window_door_yolo_formatted"
+    )
+    object_to_class_dict = {
+        "WINDOW": 0,
+        "DOOR": 1,
+    }
+    window_door_yolo_labels = convert_prodigy_file(prod_file_name, object_to_class_dict)
+    split_save_data(
+        window_door_yolo_labels, train_prop, test_prop, yolo_data_folder_name
+    )

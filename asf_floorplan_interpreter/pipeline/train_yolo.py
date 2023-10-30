@@ -39,6 +39,7 @@ class FloorPlanYolo(FlowSpec):
         self.patience = self.config["patience"]
         self.imgsz = self.config["imgsz"]
         self.project_name = self.config["project_name"]
+        self.output_suffix = self.config.get("output_suffix")
 
         with open(self.yolo_config_file, "r") as f:
             yolo_config = yaml.load(f, Loader=yaml.FullLoader)
@@ -78,6 +79,9 @@ class FloorPlanYolo(FlowSpec):
         )
 
         model_output_folder = self.config_file.split("configs/")[1].split(".yaml")[0]
+        if self.output_suffix:
+            model_output_folder = f"{model_output_folder}_{self.output_suffix}"
+
         model.export()
         os.system(
             f"aws s3 sync {self.project_name}/train/ s3://asf-floorplan-interpreter/models/{model_output_folder}/"

@@ -1,7 +1,8 @@
 yolo_config_file: "configs/yolo_window_door_config.yaml"
-yolo_pretrained_model_name: "yolov8n-seg.pt"
+yolo_pretrained_model_name: "yolov8m-seg.pt"
 epochs: 50
 batch: 16
-patience: 3
+patience: 300
 project_name: "window_door_project"
 imgsz: 640
+output_suffix: "yolov8m_wd"
