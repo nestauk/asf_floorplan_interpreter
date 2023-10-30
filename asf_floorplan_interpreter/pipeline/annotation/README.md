@@ -72,7 +72,9 @@ aws s3 cp asf_floorplan_interpreter/pipeline/annotation/prodigy_labelled/room_da
 Use the pretrained model to identify rooms, then annotation which room type they are
 
 ```
-prodigy room-type room_type_dataset asf_floorplan_interpreter/pipeline/annotation/floorplans.jsonl BEDROOM,KITCHEN,BATHROOM,LIVING,DINING,GARAGE,CONSERVATORY -F asf_floorplan_interpreter/pipeline/annotation/floorplan_recipe.py
+aws s3 sync s3://asf-floorplan-interpreter/models/room_config_yolov8m/ models/room_config_yolov8m/
+
+prodigy room-type room_type_dataset asf_floorplan_interpreter/pipeline/annotation/floorplans.jsonl RESTROOM,BEDROOM,KITCHEN,LIVING,GARAGE,OTHER -F asf_floorplan_interpreter/pipeline/annotation/floorplan_recipe.py
 
 ```
 

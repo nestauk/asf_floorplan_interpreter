@@ -116,12 +116,29 @@ def classify_rooms(dataset, source, label):
 # This isnt working as I'd like yet
 @prodigy.recipe("room-type")
 def classify_room_type(dataset, source, label):
-    room_model = load_model("outputs/models/rooms-model/best.pt")
+    room_model = load_model("models/room_config_yolov8m/weights/best.pt")
+
+    OPTIONS_keymap = {
+        "RESTROOM": "r",
+        "BEDROOM": "b",
+        "KITCHEN": "k",
+        "LIVING": "l",
+        "GARAGE": "g",
+        "OTHER": "o",
+    }
 
     OPTIONS = [
-        {"id": i, "text": label_name} for i, label_name in enumerate(label.split(","))
+        {"id": OPTIONS_keymap.get(label_name, i), "text": label_name}
+        for i, label_name in enumerate(label.split(","))
     ]
-    OPTIONS += [{"id": -1, "text": "Other"}]
+
+    # keymap_by_label is in the form {"0": "RESTROOM", "1": "BEDROOM",..}
+    OPTIONS_fromnum = {
+        str(i): OPTIONS_keymap.get(label_name, i)
+        for i, label_name in enumerate(label.split(","))
+    }
+
+    # OPTIONS += [{"id": -1, "text": "Other"}]
 
     def predict(stream, room_model=room_model):
         for eg in stream:
@@ -145,5 +162,9 @@ def classify_room_type(dataset, source, label):
             # Automatically accept and submit the answer if an option is
             # selected (only available for single-choice tasks)
             "choice_auto_accept": True,
+            "port": 22,
+            "buttons": ["accept", "ignore", "undo"],
+            "keymap_by_label": OPTIONS_fromnum,
+            "keymap": {"accept": ["enter"]},
         },
     }
