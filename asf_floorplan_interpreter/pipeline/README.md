@@ -64,9 +64,11 @@ This will train the model and output the best model in [this S3 location](https:
 If you want to get the model and the evaluation files locally from a model you have trained run:
 
 ```
-aws s3 sync s3://asf-floorplan-interpreter/models/window_door_config_yolov8m_wd/ window_door_config_yolov8m_wd/
+aws s3 sync s3://asf-floorplan-interpreter/models/{MODEL_NAME}/ models/{MODEL_NAME}/
 
 ```
+
+where `MODEL_NAME` will be the name of the config file you used to train the model, plus any suffix that was given in this config, e.g. `window_door_config_yolov8m_wd`.
 
 The metaflow files are in this location: https://s3.console.aws.amazon.com/s3/buckets/open-jobs-lake?prefix=metaflow/FloorPlanYolo/&region=eu-west-1
 

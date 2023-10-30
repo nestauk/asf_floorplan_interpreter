@@ -1,31 +1,11 @@
 from asf_floorplan_interpreter import BUCKET_NAME, PROJECT_DIR, logger
 from nesta_ds_utils.loading_saving.S3 import download_file
 
-# from asf_floorplan_interpreter.utils.s3 import download_directory_from_s3
-
 import json
 
 import boto3
 from fnmatch import fnmatch
 import yaml
-
-# def get_data_for_model(s3_directory):
-#     """Download data for training model (locally)"""
-
-#     download_directory_from_s3(
-#         BUCKET_NAME, s3_directory, (PROJECT_DIR / "inputs/data/roboflow_data/")
-#     )
-
-
-def get_config():
-    """Download model config file"""
-    download_file("data/config.yaml", BUCKET_NAME, (PROJECT_DIR / "inputs/config.yaml"))
-
-
-def load_files_for_yolo():
-    """Loads relevant files for training the YOLO model"""
-    get_data_for_model("data/roboflow_data/")
-    get_config()
 
 
 def get_s3_resource():
@@ -111,7 +91,6 @@ def get_s3_data_paths(bucket_name, root):
 
     bucket_name: The S3 bucket name
     root: The root folder to look for files in
-    file_types: List of file types to look for, or one
     """
     s3 = get_s3_resource()
 
