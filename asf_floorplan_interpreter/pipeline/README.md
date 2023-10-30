@@ -43,11 +43,10 @@ This will output the images and the labels in various S3 locations.
 Run
 
 ```
-
 python asf_floorplan_interpreter/pipeline/merge_prodigy_roboflow.py
 ```
 
-to merge the windows and door labels from the Roboflow dataset and the Prodigy dataset. This will output data to `data/annotation/prodigy_labelled/191023/yolo_formatted/window_door_prodigy_plus_roboflow` and will take some time to run.
+to merge the windows and door labels from the Roboflow dataset and the Prodigy dataset. This will output data to `data/annotation/prodigy_labelled/301023/yolo_formatted/window_door_prodigy_plus_roboflow` and will take some time to run.
 
 Any other classes other than windows and doors will be removed from the labelled dataset.
 

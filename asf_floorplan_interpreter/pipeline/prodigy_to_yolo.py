@@ -125,7 +125,7 @@ def split_save_data(yolo_labels, train_prop, test_prop, output_folder_name):
 
 
 if __name__ == "__main__":
-    prodigy_labelled_date = "191023"
+    prodigy_labelled_date = "301023"
     prodigy_labelled_dir = f"data/annotation/prodigy_labelled/{prodigy_labelled_date}"
 
     train_prop = 0.6
@@ -137,7 +137,9 @@ if __name__ == "__main__":
     print("Process the room dataset")
 
     prod_file_name = os.path.join(prodigy_labelled_dir, "room_dataset.jsonl")
-    yolo_data_folder_name = os.path.join(prodigy_labelled_dir, "room_yolo_formatted")
+    yolo_data_folder_name = os.path.join(
+        prodigy_labelled_dir, "yolo_formatted/room_yolo_formatted"
+    )
     object_to_class_dict = {
         "ROOM": 0,
     }
@@ -148,7 +150,7 @@ if __name__ == "__main__":
 
     prod_file_name = os.path.join(prodigy_labelled_dir, "window_door_staircase.jsonl")
     yolo_data_folder_name = os.path.join(
-        prodigy_labelled_dir, "window_door_staircase_yolo_formatted"
+        prodigy_labelled_dir, "yolo_formatted/window_door_staircase_yolo_formatted"
     )
     object_to_class_dict = {
         "WINDOW": 0,
@@ -160,50 +162,11 @@ if __name__ == "__main__":
         window_door_yolo_labels, train_prop, test_prop, yolo_data_folder_name
     )
 
-    print("Process the corrected dataset")
-
-    prod_file_name = os.path.join(
-        prodigy_labelled_dir, "check_window_door_staircase.jsonl"
-    )
-    yolo_data_folder_name = os.path.join(
-        prodigy_labelled_dir, "check_window_door_staircase_yolo_formatted"
-    )
-    object_to_class_dict = {
-        "WINDOW": 0,
-        "DOOR": 1,
-        "STAIRCASE": 2,
-    }
-    window_door_yolo_labels = convert_prodigy_file(
-        prod_file_name, object_to_class_dict, use_all=True
-    )
-    split_save_data(
-        window_door_yolo_labels, train_prop, test_prop, yolo_data_folder_name
-    )
-
-    print("Process the corrected just windows and doors")
-
-    prod_file_name = os.path.join(
-        prodigy_labelled_dir, "check_window_door_staircase.jsonl"
-    )
-    yolo_data_folder_name = os.path.join(
-        prodigy_labelled_dir, "check_window_door_yolo_formatted"
-    )
-    object_to_class_dict = {
-        "WINDOW": 0,
-        "DOOR": 1,
-    }
-    window_door_yolo_labels = convert_prodigy_file(
-        prod_file_name, object_to_class_dict, use_all=True
-    )
-    split_save_data(
-        window_door_yolo_labels, train_prop, test_prop, yolo_data_folder_name
-    )
-
-    print("Process the not corrected just windows and doors")
+    print("Process just windows and doors dataset")
 
     prod_file_name = os.path.join(prodigy_labelled_dir, "window_door_staircase.jsonl")
     yolo_data_folder_name = os.path.join(
-        prodigy_labelled_dir, "window_door_yolo_formatted"
+        prodigy_labelled_dir, "yolo_formatted/window_door_yolo_formatted"
     )
     object_to_class_dict = {
         "WINDOW": 0,

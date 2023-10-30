@@ -1,4 +1,4 @@
-path: "data/annotation/prodigy_labelled/191023/yolo_formatted/window_door_prodigy_plus_roboflow/"
+path: "data/annotation/prodigy_labelled/301023/yolo_formatted/window_door_prodigy_plus_roboflow/"
 train: images/train
 val: images/val
 test: images/test

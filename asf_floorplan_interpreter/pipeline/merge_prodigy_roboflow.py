@@ -18,7 +18,7 @@ import os
 from tqdm import tqdm
 
 if __name__ == "__main__":
-    prodigy_labelled_dir = "data/annotation/prodigy_labelled/191023"
+    prodigy_labelled_dir = "data/annotation/prodigy_labelled/301023"
     roboflow_dir = "data/roboflow_data"
     output_dir = os.path.join(
         prodigy_labelled_dir, "yolo_formatted/window_door_prodigy_plus_roboflow"
