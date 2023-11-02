@@ -176,3 +176,13 @@ if __name__ == "__main__":
     split_save_data(
         window_door_yolo_labels, train_prop, test_prop, yolo_data_folder_name
     )
+
+    print("Process just staircase dataset")
+
+    prod_file_name = os.path.join(prodigy_labelled_dir, "window_door_staircase.jsonl")
+    yolo_data_folder_name = os.path.join(
+        prodigy_labelled_dir, "yolo_formatted/staircase_yolo_formatted"
+    )
+    object_to_class_dict = {"STAIRCASE": 0}
+    staircase_yolo_labels = convert_prodigy_file(prod_file_name, object_to_class_dict)
+    split_save_data(staircase_yolo_labels, train_prop, test_prop, yolo_data_folder_name)
