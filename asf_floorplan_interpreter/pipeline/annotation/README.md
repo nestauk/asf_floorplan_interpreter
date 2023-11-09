@@ -82,6 +82,35 @@ prodigy room-type room_type_dataset asf_floorplan_interpreter/pipeline/annotatio
 prodigy db-out room_type_dataset > asf_floorplan_interpreter/pipeline/annotation/prodigy_labelled/room_type_dataset.jsonl
 ```
 
+## Acceptance data:
+
+Run through all the floorplans in Prodigy to accept whether they are suitable or not.
+
+Unsuitable ones would be ones which are 3D.
+
+This is helpful for two reasons:
+
+1. To make sure we don't evaluate on images that are outliers
+2. To create the metadata of image size, which Prodigy adds to a "image_manual" task quite conveniently (but doesn't seem to for a "choice" task)!
+
+```
+prodigy label-quality quality_dataset asf_floorplan_interpreter/pipeline/annotation/floorplans.jsonl GOOD -F asf_floorplan_interpreter/pipeline/annotation/floorplan_recipe.py
+
+```
+
+```
+prodigy db-out quality_dataset > asf_floorplan_interpreter/pipeline/annotation/prodigy_labelled/quality_dataset.jsonl
+```
+
+20 out of the 497 floor plans in `floorplans.jsonl` were rejected for being 3D or not actually floor plans.
+
+Save it to S3:
+
+```
+aws s3 cp asf_floorplan_interpreter/pipeline/annotation/prodigy_labelled/quality_dataset.jsonl s3://asf-floorplan-interpreter/data/annotation/prodigy_labelled/quality_dataset.jsonl
+
+```
+
 ## Clean up
 
 YOLO reads and saves each floorplan jpg, so you will end up with the directory being full of these. To clean them up run:

@@ -113,7 +113,6 @@ def classify_rooms(dataset, source, label):
     }
 
 
-# This isnt working as I'd like yet
 @prodigy.recipe("room-type")
 def classify_room_type(dataset, source, label):
     room_model = load_model("models/room_config_yolov8m/weights/best.pt")
@@ -166,5 +165,26 @@ def classify_room_type(dataset, source, label):
             "buttons": ["accept", "ignore", "undo"],
             "keymap_by_label": OPTIONS_fromnum,
             "keymap": {"accept": ["enter"]},
+        },
+    }
+
+
+@prodigy.recipe("label-quality")
+def label_quality(dataset, source, label):
+    def yield_stream(stream):
+        for eg in stream:
+            yield eg
+
+    stream = JSONL(source)
+
+    stream = yield_stream(stream)
+
+    return {
+        "dataset": dataset,
+        "stream": stream,
+        "view_id": "image_manual",
+        "config": {
+            "labels": label.split(","),
+            "port": 8501,
         },
     }
