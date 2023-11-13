@@ -43,7 +43,7 @@ prodigy db-out window_doors_staircase_dataset > asf_floorplan_interpreter/pipeli
 Save it to S3:
 
 ```
-aws s3 cp asf_floorplan_interpreter/pipeline/annotation/prodigy_labelled/window_door_staircase.jsonl s3://asf-floorplan-interpreter/data/annotation/prodigy_labelled/181023/window_door_staircase.jsonl
+aws s3 cp asf_floorplan_interpreter/pipeline/annotation/prodigy_labelled/window_door_staircase.jsonl s3://asf-floorplan-interpreter/data/annotation/prodigy_labelled/131123/window_door_staircase.jsonl
 
 ```
 
@@ -63,11 +63,13 @@ prodigy db-out room_dataset > asf_floorplan_interpreter/pipeline/annotation/prod
 Save it to S3:
 
 ```
-aws s3 cp asf_floorplan_interpreter/pipeline/annotation/prodigy_labelled/room_dataset.jsonl s3://asf-floorplan-interpreter/data/annotation/prodigy_labelled/181023/room_dataset.jsonl
+aws s3 cp asf_floorplan_interpreter/pipeline/annotation/prodigy_labelled/room_dataset.jsonl s3://asf-floorplan-interpreter/data/annotation/prodigy_labelled/131123/room_dataset.jsonl
 
 ```
 
 ## Room type model:
+
+### Task type 1
 
 Use the pretrained model to identify rooms, then annotation which room type they are
 
@@ -80,6 +82,36 @@ prodigy room-type room_type_dataset asf_floorplan_interpreter/pipeline/annotatio
 
 ```
 prodigy db-out room_type_dataset > asf_floorplan_interpreter/pipeline/annotation/prodigy_labelled/room_type_dataset.jsonl
+```
+
+Save it to S3:
+
+```
+aws s3 cp asf_floorplan_interpreter/pipeline/annotation/prodigy_labelled/room_type_dataset.jsonl s3://asf-floorplan-interpreter/data/annotation/prodigy_labelled/131123/room_type_dataset.jsonl
+
+```
+
+### Task type 2
+
+Using the room polygons labelled in the above Prodigy task, annotate which room type they are
+
+```
+# If you don't already have the labelled data:
+aws s3 cp s3://asf-floorplan-interpreter/data/annotation/prodigy_labelled/131123/room_dataset.jsonl asf_floorplan_interpreter/pipeline/annotation/prodigy_labelled/room_dataset.jsonl
+
+prodigy room-type-from-labels room_type_from_labels_dataset asf_floorplan_interpreter/pipeline/annotation/prodigy_labelled/room_dataset.jsonl RESTROOM,BEDROOM,KITCHEN,LIVING,GARAGE,OTHER -F asf_floorplan_interpreter/pipeline/annotation/floorplan_recipe.py
+
+```
+
+```
+prodigy db-out room_type_from_labels_dataset > asf_floorplan_interpreter/pipeline/annotation/prodigy_labelled/room_type_from_labels_dataset.jsonl
+```
+
+Save it to S3:
+
+```
+aws s3 cp asf_floorplan_interpreter/pipeline/annotation/prodigy_labelled/room_type_from_labels_dataset.jsonl s3://asf-floorplan-interpreter/data/annotation/prodigy_labelled/131123/room_type_from_labels_dataset.jsonl
+
 ```
 
 ## Acceptance data:

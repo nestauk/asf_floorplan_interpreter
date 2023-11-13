@@ -113,6 +113,78 @@ def classify_rooms(dataset, source, label):
     }
 
 
+@prodigy.recipe("room-type-from-labels")
+def classify_room_type_from_labels(dataset, source, label):
+    """
+    Assumes the input stream already has the room polygons labelled
+    """
+
+    OPTIONS_keymap = {
+        "RESTROOM": "r",
+        "BEDROOM": "b",
+        "KITCHEN": "k",
+        "LIVING": "l",
+        "GARAGE": "g",
+        "OTHER": "o",
+    }
+
+    OPTIONS = [
+        {"id": OPTIONS_keymap.get(label_name, i), "text": label_name}
+        for i, label_name in enumerate(label.split(","))
+    ]
+
+    # keymap_by_label is in the form {"0": "RESTROOM", "1": "BEDROOM",..}
+    OPTIONS_fromnum = {
+        str(i): OPTIONS_keymap.get(label_name, i)
+        for i, label_name in enumerate(label.split(","))
+    }
+
+    # OPTIONS += [{"id": -1, "text": "Other"}]
+
+    room_meta_keys = [
+        "_input_hash",
+        "_task_hash",
+        "_view_id",
+        "width",
+        "height",
+        "answer",
+        "_timestamp",
+        "_annotator_id",
+        "_session_id",
+    ]
+
+    def predict(stream):
+        for eg in stream:
+            span_dict = {"id": eg["id"], "image": eg["image"]}
+            for span in eg["spans"]:
+                # One span at a time
+                span_dict["spans"] = [span]
+                # Keep the room labelled metadata (not sure how useful, but just in case!)
+                span_dict["room_meta"] = {k: eg.get(k) for k in room_meta_keys}
+                span_dict["options"] = OPTIONS
+                yield span_dict
+
+    stream = JSONL(source)
+
+    stream = predict(stream)
+
+    return {
+        "dataset": dataset,
+        "stream": stream,
+        "view_id": "choice",
+        "config": {
+            "choice_style": "single",  # or "multiple"
+            # Automatically accept and submit the answer if an option is
+            # selected (only available for single-choice tasks)
+            "choice_auto_accept": True,
+            "port": 8083,
+            "buttons": ["accept", "ignore", "undo"],
+            "keymap_by_label": OPTIONS_fromnum,
+            "keymap": {"accept": ["enter"]},
+        },
+    }
+
+
 @prodigy.recipe("room-type")
 def classify_room_type(dataset, source, label):
     room_model = load_model("models/room_config_yolov8m/weights/best.pt")
@@ -161,7 +233,7 @@ def classify_room_type(dataset, source, label):
             # Automatically accept and submit the answer if an option is
             # selected (only available for single-choice tasks)
             "choice_auto_accept": True,
-            "port": 22,
+            "port": 8082,
             "buttons": ["accept", "ignore", "undo"],
             "keymap_by_label": OPTIONS_fromnum,
             "keymap": {"accept": ["enter"]},
