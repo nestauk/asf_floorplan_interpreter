@@ -4,6 +4,7 @@ import os
 import random
 import requests
 from io import BytesIO
+import pandas as pd
 
 import boto3
 
@@ -79,6 +80,134 @@ def convert_prodigy_file(file_name, object_to_class_dict, use_all=False):
     return yolo_labels
 
 
+def transform_room_type_json(original_json_path, hw_json_path):
+    """Function that takes the room type json and converts it to a json in the dictionary format
+    of all other room labelling tasks (with the the house, rather than room, as the unit of analysis).
+    Merges in height and width data from sepearate json file.
+    Args:
+    original_json_path: s3 path to the latest room type model data
+    hw_json_path: s3 path to the prodigy json that simply accepts/ rejects all images, and provides height/ width data
+    ('data/annotation/prodigy_labelled/quality_dataset.jsonl' as of 13 November 2023)"""
+    room_dict = load_prodigy_jsonl_s3_data(BUCKET_NAME, original_json_path)
+    height_width_dict = load_prodigy_jsonl_s3_data(BUCKET_NAME, hw_json_path)
+    transformed_data = {}
+
+    # Iterate through the original data
+    for item in room_dict:
+        if item.get("answer") == "accept":
+            image_id = item["image"]
+            if image_id not in transformed_data:
+                transformed_data[image_id] = {"image": image_id, "spans": []}
+
+            # Extract the relevant information from the item
+            accept_options = item.get("accept", [])
+            options = item.get("options", [])
+            spans = {
+                "label": [
+                    option["text"]
+                    for option in options
+                    if option["id"] in accept_options
+                ][0],
+                "points": item["spans"][0][
+                    "points"
+                ],  # Assuming there's always one span
+                "type": item["spans"][0]["type"],
+            }
+
+            # Append the span to the image's 'span' list
+            transformed_data[image_id]["spans"].append(spans)
+
+    # Convert the transformed data to a list of dictionaries
+    transformed_data_list = list(transformed_data.values())
+
+    # Merge in height and width values
+    room_type_df = pd.DataFrame(transformed_data_list)
+    height_width_df = pd.DataFrame(height_width_dict)
+    merged_df = pd.merge(
+        room_type_df,
+        height_width_df[["image", "height", "width"]],
+        on="image",
+        how="left",
+    )
+    data_for_conversion = merged_df.to_dict(orient="records")
+
+    return data_for_conversion
+
+
+def find_identical_points(data):
+    """Function to check if there are duplicate rooms in the room type model
+    Not yet an issue, if it says there are, may need to consider updated transform function to include most recent label
+    """
+    identical_points = []
+
+    for item in data:
+        image_id = item["image"]
+        spans = item.get("spans", [])
+
+        for span in spans:
+            points_list = span.get("points", [])
+            span_id = span.get("label", [])
+
+            for i in range(len(points_list)):
+                for j in range(i + 1, len(points_list)):
+                    if points_list[i] == points_list[j]:
+                        identical_points.append(
+                            {
+                                "image": image_id,
+                                "span_id": span_id,
+                                "identical_points": points_list[i],
+                            }
+                        )
+
+    return identical_points
+
+
+def count_label_types(data):
+    """Helper function to check how many of each type are in the labelled set"""
+    label_counts = {}
+
+    for item in data:
+        spans = item.get("spans", [])
+
+        for span in spans:
+            label = span.get("label", [])
+
+            if label in label_counts:
+                label_counts[label] += 1
+            else:
+                label_counts[label] = 1
+
+    return label_counts
+
+
+def check_room_output(transformed_data_list):
+    """Runs the helper functions to check the conversion has worked"""
+    print(f"Total images represented: {len(transformed_data_list)}")
+    print(f"Total rooms by type: {count_label_types(transformed_data_list)}")
+    duplicated = find_identical_points(transformed_data_list)
+    if len(duplicated) > 0:
+        print("Caution, duplicate points found")
+    else:
+        print("No duplicate labels found")
+
+
+def convert_room_type_to_yolo(data, object_to_class_dict):
+    yolo_labels = {}
+
+    for prod_label in data:
+        yolo_label = convert_prod_to_yolo(prod_label, object_to_class_dict)
+        image_url = prod_label["image"]
+
+        # Use the latest label if an image has come up more than once
+        yolo_labels[image_url] = yolo_label
+
+    yolo_labels = [(k, v) for k, v in yolo_labels.items()]
+    print(
+        f"Original data was {len(data)} annotations, filtered for accepted labels and deduplicated gives us {len(yolo_labels)} annotations"
+    )
+    return yolo_labels
+
+
 def split_save_data(yolo_labels, train_prop, test_prop, output_folder_name):
     s3 = boto3.resource("s3")
     bucket = s3.Bucket(name=BUCKET_NAME)
@@ -125,9 +254,12 @@ def split_save_data(yolo_labels, train_prop, test_prop, output_folder_name):
 
 
 if __name__ == "__main__":
-    prodigy_labelled_date = "301023"
-    prodigy_labelled_dir = f"data/annotation/prodigy_labelled/{prodigy_labelled_date}"
-
+    prodigy_labelled_date = {
+        "room_dataset": "131123",
+        "window_door_staircase_dataset": "131123",
+        "room_type_dataset": "131123",
+    }
+    hw_json_path = "data/annotation/prodigy_labelled/quality_dataset.jsonl"
     train_prop = 0.6
     test_prop = 0.2
     # val_prop = 1 - (train_prop + test_prop) # Dont need to set this
@@ -136,6 +268,9 @@ if __name__ == "__main__":
 
     print("Process the room dataset")
 
+    prodigy_labelled_dir = (
+        f"data/annotation/prodigy_labelled/{prodigy_labelled_date['room_dataset']}"
+    )
     prod_file_name = os.path.join(prodigy_labelled_dir, "room_dataset.jsonl")
     yolo_data_folder_name = os.path.join(
         prodigy_labelled_dir, "yolo_formatted/room_yolo_formatted"
@@ -148,6 +283,7 @@ if __name__ == "__main__":
 
     print("Process the window/door/staircase dataset")
 
+    prodigy_labelled_dir = f"data/annotation/prodigy_labelled/{prodigy_labelled_date['window_door_staircase_dataset']}"
     prod_file_name = os.path.join(prodigy_labelled_dir, "window_door_staircase.jsonl")
     yolo_data_folder_name = os.path.join(
         prodigy_labelled_dir, "yolo_formatted/window_door_staircase_yolo_formatted"
@@ -157,6 +293,7 @@ if __name__ == "__main__":
         "DOOR": 1,
         "STAIRCASE": 2,
     }
+
     window_door_yolo_labels = convert_prodigy_file(prod_file_name, object_to_class_dict)
     split_save_data(
         window_door_yolo_labels, train_prop, test_prop, yolo_data_folder_name
@@ -164,6 +301,7 @@ if __name__ == "__main__":
 
     print("Process just windows and doors dataset")
 
+    prodigy_labelled_dir = f"data/annotation/prodigy_labelled/{prodigy_labelled_date['window_door_staircase_dataset']}"
     prod_file_name = os.path.join(prodigy_labelled_dir, "window_door_staircase.jsonl")
     yolo_data_folder_name = os.path.join(
         prodigy_labelled_dir, "yolo_formatted/window_door_yolo_formatted"
@@ -176,3 +314,27 @@ if __name__ == "__main__":
     split_save_data(
         window_door_yolo_labels, train_prop, test_prop, yolo_data_folder_name
     )
+
+    print("Process room type dataset")
+
+    prodigy_labelled_dir = (
+        f"data/annotation/prodigy_labelled/{prodigy_labelled_date['room_type_dataset']}"
+    )
+    prod_file_name = os.path.join(prodigy_labelled_dir, "room_type_dataset.jsonl")
+    yolo_data_folder_name = os.path.join(
+        prodigy_labelled_dir, "yolo_formatted/room_type_yolo_formatted"
+    )
+    object_to_class_dict = {
+        "RESTROOM": 0,
+        "BEDROOM": 1,
+        "KITCHEN": 2,
+        "LIVING": 3,
+        "GARAGE": 4,
+        "OTHER": 5,
+    }
+    prodigy_convert = transform_room_type_json(prod_file_name, hw_json_path)
+    check_room_output(prodigy_convert)
+    room_type_yolo_labels = convert_room_type_to_yolo(
+        prodigy_convert, object_to_class_dict
+    )
+    split_save_data(room_type_yolo_labels, train_prop, test_prop, yolo_data_folder_name)

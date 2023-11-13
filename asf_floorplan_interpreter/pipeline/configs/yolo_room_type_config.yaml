@@ -1,0 +1,8 @@
+path: "data/annotation/prodigy_labelled/311023/yolo_formatted/room_type_yolo_formatted/"
+train: images/train
+val: images/val
+test: images/test
+save_dir: "room_type_save_dir/"
+
+nc: 6
+names: ["RESTROOM", "BEDROOM", "KITCHEN", "LIVING", "GARAGE", "OTHER"]
