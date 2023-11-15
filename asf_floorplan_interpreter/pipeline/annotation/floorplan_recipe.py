@@ -177,7 +177,7 @@ def classify_room_type_from_labels(dataset, source, label):
             # Automatically accept and submit the answer if an option is
             # selected (only available for single-choice tasks)
             "choice_auto_accept": True,
-            "port": 8083,
+            "port": 8501,
             "buttons": ["accept", "ignore", "undo"],
             "keymap_by_label": OPTIONS_fromnum,
             "keymap": {"accept": ["enter"]},
