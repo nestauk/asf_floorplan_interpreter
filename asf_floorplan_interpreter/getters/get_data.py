@@ -79,9 +79,11 @@ def load_s3_data(bucket_name, file_name):
         return pickle.loads(file)
     elif fnmatch(file_name, "*.txt"):
         return obj.get()["Body"].read().decode().split("\n")
+    elif fnmatch(file_name, "*.jpg"):
+        return obj.get()["Body"].read()
     else:
         logger.error(
-            'Function not supported for file type other than "*.csv", "*.jsonl.gz", "*.jsonl", or "*.json"'
+            'Function not supported for file type other than "*.csv", "*.jsonl.gz", "*.jsonl", "*.jpg" or "*.json"'
         )
 
 
