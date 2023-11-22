@@ -28,7 +28,7 @@ We created datasets of labelled data using Prodigy.
 
 1. Labelling rooms (`room_dataset.jsonl`).
 2. Labelling doors, windows and staircases (`window_door_staircase.jsonl`).
-3. A manually checked and corrected version of 100 labelled doors, windows and staircases (`check_window_door_staircase.jsonl`).
+3. Labelling room types from the room labels (`room_type_dataset.jsonl`).
 
 To create the yolo-formatted datasets from labelled data using Prodigy, run:
 
@@ -46,7 +46,7 @@ Run
 python asf_floorplan_interpreter/pipeline/merge_prodigy_roboflow.py
 ```
 
-to merge the windows and door labels from the Roboflow dataset and the Prodigy dataset. This will output data to `data/annotation/prodigy_labelled/301023/yolo_formatted/window_door_prodigy_plus_roboflow` and will take some time to run.
+to merge the windows and door labels from the Roboflow dataset and the Prodigy dataset. This will output data to `data/annotation/prodigy_labelled/131123/yolo_formatted/window_door_prodigy_plus_roboflow` and will take some time to run.
 
 Any other classes other than windows and doors will be removed from the labelled dataset.
 
@@ -83,6 +83,8 @@ The main configs to choose from are:
 1. `configs/roboflow_config.yaml`: To train a model to identify doors, windows and rooms using the Roboflow dataset.
 2. `configs/room_config.yaml`: To train a model that will identify rooms using our labelled dataset.
 3. `configs/window_door_config.yaml`: To train a model that will identify windows, and doors using our labelled dataset plus that from Roboflow.
+4. `configs/staircase_config.yaml`: To train a model to identify staircases
+5. `configs/room_type_config.yaml`: To train a model to identify specific room types ("RESTROOM", "BEDROOM", "KITCHEN", "LIVING", "GARAGE", "OTHER")
 
 There are also test versions of some of these which will run more quickly `configs/roboflow_test_config.yaml` and `configs/room_test_config.yaml`.
 

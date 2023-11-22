@@ -4,7 +4,7 @@ from asf_floorplan_interpreter import PROJECT_DIR
 from asf_floorplan_interpreter.utils.model_utils import load_model
 
 
-def create_results_dict(img, model):
+def create_results_dict(img, model, save=True):
     """Predict a given image and output a dictionary of counts for each class
 
     Args:
@@ -12,7 +12,7 @@ def create_results_dict(img, model):
         model (pytorch model): chosen model for predictions
     """
 
-    results = model(img, save=True)
+    results = model(img, save=save, verbose=False)
     class_names = results[0].names
     class_pred_count = dict(Counter(results[0].boxes.cls.tolist()))
 
@@ -26,3 +26,15 @@ def predict_image(local_directory, img):
     )  # e.g. directory = "outputs/models/rooms-model/best.pt"
 
     return create_results_dict(img, model)
+
+
+def full_output(
+    img, room_model, window_door_model, room_type_model, staircase_model=None
+):
+    results = {}
+    results.update(create_results_dict(img, room_model, save=False))
+    results.update(create_results_dict(img, window_door_model, save=False))
+    results.update(create_results_dict(img, room_type_model, save=False))
+    if staircase_model:
+        results.update(create_results_dict(img, staircase_model, save=False))
+    return results
