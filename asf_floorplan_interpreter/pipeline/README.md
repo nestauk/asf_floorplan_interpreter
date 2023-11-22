@@ -112,5 +112,36 @@ we provide the paths to the training, test and validation sets (i.e. `data/robof
 
 ## Trained models
 
-- `models/window_door_config_yolov8m_wd/`: This is the model trained on around 100 floorplans labelled using Prodigy, plus the RoboFlow dataset. Only window and door classes are used and trained.
-- `models/room_config_yolov8m/`: This is the model trained on rooms annotated in around 100 floorplans labelled using Prodigy.
+- `models/window_door_config_yolov8m_wd/`
+- `models/room_config_yolov8m/`
+- `models/staircase_config_yolov8m/`
+- `models/room_type_config_yolov8m/`
+
+## Evaluation
+
+Each model is evaluated on its validation dataset, and metrics are stored in the different model output folders.
+
+We also run a full pipeline evaluation using our evaluation dataset - a manually coded sample of floorplans with how many floors, windows, rooms and each room type they have. This dataset is stored in `s3://asf-floorplan-interpreter/data/annotation/evaluation/Econest_test_set_floorplans_211123.csv`.
+
+To run the evaluation, which will compare the models' predictions with the ground truth run:
+
+```
+python asf_floorplan_interpreter/pipeline/evaluate.py
+
+```
+
+The results are stored in `s3://asf-floorplan-interpreter/models/evaluation/`.
+
+For the `20231121/` evaluation we calculate the mean squared error between the model predicted results and the ground truth for each entity type (e.g. room, window, kitchen). We also claulcate this for EcoNest's our rule-based estimates of these numbers.
+
+| Entity type | EcoNest rule-based MSE | Model prediction MSE | Number of floorplans in calculation |
+| ----------- | ---------------------- | -------------------- | ----------------------------------- |
+| DOOR        | 31.55                  | 7.35                 | 20                                  |
+| WINDOW      | 23.35                  | 4.7                  | 20                                  |
+| BEDROOM     | 0.29                   | 1.1                  | 76                                  |
+| KITCHEN     | 0.01                   | 0.62                 | 77                                  |
+| LIVING      | 0.90                   | 1.02                 | 77                                  |
+| RESTROOM    | 0.61                   | 0.54                 | 75                                  |
+| ROOM        | 28.1                   | 5                    | 77                                  |
+| GARAGE      | -                      | 0.43                 | 56                                  |
+| OTHER       | -                      | 4.7                  | 57                                  |

@@ -182,8 +182,6 @@ if __name__ == "__main__":
         os.path.join("outputs/models", room_type_model_name, "weights/best.pt")
     )
 
-    # eval_dict = {k:v for k,v in eval_dict.items() if k in list(eval_dict.keys())[0:5]} # DELETE
-
     logger.info("Predict numbers of rooms etc for each of the evaluation floorplans")
     pred_dict = {}
     for floorplan_url in tqdm(eval_dict.keys()):
