@@ -12,6 +12,7 @@ from asf_floorplan_interpreter.getters.get_data import (
     get_s3_data_paths,
 )
 from asf_floorplan_interpreter import BUCKET_NAME
+from asf_floorplan_interpreter.utils.config_utils import read_base_config
 
 from collections import Counter
 import os
@@ -19,15 +20,15 @@ from tqdm import tqdm
 import pandas as pd
 
 if __name__ == "__main__":
-    prodigy_labelled_dir = "data/annotation/prodigy_labelled/211123"
+    config = read_base_config()
+
+    prodigy_labelled_dir = f"data/annotation/prodigy_labelled/{config['prodigy_labelled_date']['window_door_staircase_dataset']}"
     roboflow_dir = "data/roboflow_data"
     output_dir = os.path.join(
         prodigy_labelled_dir, "yolo_formatted/window_door_prodigy_plus_roboflow"
     )
 
-    eval_data = load_s3_data(
-        BUCKET_NAME, "data/annotation/evaluation/Econest_test_set_floorplans_211123.csv"
-    )
+    eval_data = load_s3_data(BUCKET_NAME, config["eval_data_file"])
 
     object_to_class_dict = {
         "WINDOW": 0,

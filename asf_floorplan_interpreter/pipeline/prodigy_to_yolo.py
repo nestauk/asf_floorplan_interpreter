@@ -15,6 +15,8 @@ from asf_floorplan_interpreter.getters.get_data import (
 )
 from asf_floorplan_interpreter import BUCKET_NAME, logger
 
+from asf_floorplan_interpreter.utils.config_utils import read_base_config
+
 
 def scale_points_by_hw(lst, width, height):
     "helper function to scale the x,y coordinates by object height and width"
@@ -296,17 +298,20 @@ def split_save_data(
 
 
 if __name__ == "__main__":
+    config = read_base_config()
     prodigy_labelled_date = {
-        "room_dataset": "211123",
-        "window_door_staircase_dataset": "211123",
-        "room_type_from_labels_dataset": "211123",
+        "room_dataset": config["prodigy_labelled_date"]["room_dataset"],
+        "window_door_staircase_dataset": config["prodigy_labelled_date"][
+            "window_door_staircase_dataset"
+        ],
+        "room_type_from_labels_dataset": config["prodigy_labelled_date"][
+            "room_type_from_labels_dataset"
+        ],
     }
-    hw_json_path = "data/annotation/prodigy_labelled/quality_dataset.jsonl"
+    hw_json_path = config["hw_json_path"]
 
     # Our hold out evaluation data (manually labelled with final room counts)
-    eval_data = load_s3_data(
-        BUCKET_NAME, "data/annotation/evaluation/Econest_test_set_floorplans_211123.csv"
-    )
+    eval_data = load_s3_data(BUCKET_NAME, config["eval_data_file"])
     eval_floorplan_urls = eval_data[
         pd.notnull(eval_data["total_rooms"]) & eval_data["total_rooms"] != 0
     ]["floorplan_url"].tolist()
