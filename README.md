@@ -3,7 +3,7 @@
 This repo contains code needed to create the training data and train an image segmentation model to recognise certain parts of floorplans. We apply these trained models to a dataset of floor plans in order to estimate how many rooms, different room types, windows and doors they have.
 
 <p align="center">
-  <img src="outputs/figures/test_fp.png" />
+  <img src="outputs/figures/floorplan_prediction.png" />
 </p>
 
 ## Setup

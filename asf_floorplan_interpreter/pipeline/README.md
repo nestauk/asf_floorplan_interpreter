@@ -5,7 +5,7 @@ In this directory is the code to:
 - Create floorplan labelling tasks - see [the Prodigy folder README](asf_floorplan_interpreter/pipeline/annotation/README.md)
 - Train a model to predict segments in floorplans - `train_yolo.py`
 - Use these models to predict segments - `predict_floorplan.py`
-- Evaluate the pipeline - `evaluate.py`
+- Evaluate the pipeline - see [the evaluation folder README](asf_floorplan_interpreter/pipeline/evaluation/README.md)
 
 ## 🔨 High level usage
 
@@ -14,26 +14,34 @@ You can quickly load the trained models and make predictions on a floor plan url
 ```
 from asf_floorplan_interpreter.pipeline.predict_floorplan import FloorplanPredictor
 
-img = 'https://storage.googleapis.com/econest_properties/properties/44179/floorplans/04caf9ae5fe266b7d235824407b2a81fbd3e6f37.jpg'
+img = 'outputs/figures/floorplan.png'
 
-fp = FloorplanPredictor(predict_labels = ["WINDOW", "DOOR","KITCHEN", "LIVING", "RESTROOM", "BEDROOM", "GARAGE", "OTHER"])
-fp.load(local=False)
-fp.plot(img, "outputs/figures/test_fp.png")
+fp = FloorplanPredictor(labels_to_predict = ["WINDOW", "DOOR","KITCHEN", "LIVING", "RESTROOM", "BEDROOM", "GARAGE"])
+fp.load(local=True)
+labels, label_counts = fp.predict_labels(img)
+fp.plot(img, labels, "outputs/figures/floorplan_prediction.png", plot_label=False)
 
 ```
+
+`label_counts` will give the counts of each label, in this case `{'DOOR': 12, 'WINDOW': 10, 'LIVING': 2, 'KITCHEN': 2, 'BEDROOM': 3, 'RESTROOM': 1}`.
+
+The image created will look like the following.
+
+<p align="center">
+  <img src="outputs/figures/floorplan_prediction.png" />
+</p>
 
 ## Training data
 
 ### 🤖 Roboflow data
 
-There is [an existing annotation dataset of UK floorplans](https://universe.roboflow.com/prop/room-separation-instance/dataset/5) on Roboflow.
-This consists of:
+There is [an existing annotation dataset of UK floorplans](https://universe.roboflow.com/prop/room-separation-instance/dataset/5) on Roboflow. This consists of:
 
 - Training = 1454 images
-- val = 65 images
-- test = 54
+- Validation = 65 images
+- Test = 54 images
 
-Polygon annotation with 6 classes:
+This dataset contains polygon annotations with 6 classes:
 
 1. Door
 2. Double door
@@ -44,8 +52,6 @@ Polygon annotation with 6 classes:
 
 This dataset is stored on S3 [here](s3://asf-floorplan-interpreter/data/roboflow_data/).
 
-Warning: ultralytics requires the parent data folder to be called "datasets".
-
 ### 💥 Our own labelled data
 
 We created datasets of labelled data using Prodigy - see more about this process in [the Prodigy folder README](asf_floorplan_interpreter/pipeline/annotation/README.md). These are:
@@ -54,7 +60,7 @@ We created datasets of labelled data using Prodigy - see more about this process
 2. Labelling doors, windows and staircases (`window_door_staircase.jsonl`).
 3. Labelling room types from the room labels (`room_type_dataset.jsonl`).
 
-To create the yolo-formatted datasets from labelled data using Prodigy, run:
+To convert these Prodigy labels to format needed for YOLO, run:
 
 ```
 python asf_floorplan_interpreter/pipeline/prodigy_to_yolo.py
@@ -76,7 +82,7 @@ Any other classes other than windows and doors will be removed from the labelled
 
 ## :muscle: Training
 
-Train: YOLOV8n (smallest) for instance segmentation (docs) using metaflow:
+The pre-trained YOLOv8m model for instance segmentation (docs) can be trained with our newly annotated data using metaflow, by running:
 
 ```
 cd asf_floorplan_interpreter/pipeline/
@@ -136,36 +142,9 @@ we provide the paths to the training, test and validation sets (i.e. `data/robof
 
 ### Trained models
 
+The trained models we use in evaluation and prediction are the following:
+
 - `models/window_door_config_yolov8m_wd/`
 - `models/room_config_yolov8m/`
 - `models/staircase_config_yolov8m/`
 - `models/room_type_config_yolov8m/`
-
-## 🧮 Evaluation
-
-Each model is evaluated on its validation dataset, and metrics are stored in the different model output folders.
-
-We also run a full pipeline evaluation using our evaluation dataset - a manually coded sample of floorplans with how many floors, windows, rooms and each room type they have. This dataset is stored in `s3://asf-floorplan-interpreter/data/annotation/evaluation/Econest_test_set_floorplans_211123.csv`.
-
-To run the evaluation, which will compare the models' predictions with the ground truth run:
-
-```
-python asf_floorplan_interpreter/pipeline/evaluate.py
-
-```
-
-The results are stored in `s3://asf-floorplan-interpreter/models/evaluation/`.
-
-For the `20231121/` evaluation we calculate the mean squared error between the model predicted results and the ground truth for each entity type (e.g. room, window, kitchen). We also claulcate this for EcoNest's our rule-based estimates of these numbers.
-
-| Entity type | EcoNest rule-based MSE | Model prediction MSE | Number of floorplans in calculation |
-| ----------- | ---------------------- | -------------------- | ----------------------------------- |
-| DOOR        | 31.55                  | 7.35                 | 20                                  |
-| WINDOW      | 23.35                  | 4.7                  | 20                                  |
-| BEDROOM     | 0.29                   | 1.1                  | 76                                  |
-| KITCHEN     | 0.01                   | 0.62                 | 77                                  |
-| LIVING      | 0.90                   | 1.02                 | 77                                  |
-| RESTROOM    | 0.61                   | 0.54                 | 75                                  |
-| ROOM        | 28.1                   | 5                    | 77                                  |
-| GARAGE      | -                      | 0.43                 | 56                                  |
-| OTHER       | -                      | 4.7                  | 57                                  |
