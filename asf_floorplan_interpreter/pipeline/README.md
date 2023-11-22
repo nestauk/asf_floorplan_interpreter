@@ -2,10 +2,10 @@
 
 In this directory is the code to:
 
-- Create floorplan labelling tasks - see [the Prodigy folder README](asf_floorplan_interpreter/pipeline/annotation/README.md)
+- Create floorplan labelling tasks - see [the Prodigy folder README](annotation/README.md)
 - Train a model to predict segments in floorplans - `train_yolo.py`
 - Use these models to predict segments - `predict_floorplan.py`
-- Evaluate the pipeline - see [the evaluation folder README](asf_floorplan_interpreter/pipeline/evaluation/README.md)
+- Evaluate the pipeline - see [the evaluation folder README](evaluation/README.md)
 
 ## 🔨 High level usage
 
@@ -28,7 +28,7 @@ fp.plot(img, labels, "outputs/figures/floorplan_prediction.png", plot_label=Fals
 The image created will look like the following.
 
 <p align="center">
-  <img src="outputs/figures/floorplan_prediction.png" />
+  <img src="../../outputs/figures/floorplan_prediction.png" />
 </p>
 
 ## Training data
