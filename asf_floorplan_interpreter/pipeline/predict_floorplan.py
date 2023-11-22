@@ -1,40 +1,154 @@
 import os
-from collections import Counter
+import yaml
+from collections import Counter, defaultdict
 from asf_floorplan_interpreter import PROJECT_DIR
-from asf_floorplan_interpreter.utils.model_utils import load_model
+from asf_floorplan_interpreter.utils.model_utils import load_model, yolo_2_segments
+from asf_floorplan_interpreter.utils.visualise_image import (
+    load_image,
+    overlay_boundaries_plot,
+)
+
+from asf_floorplan_interpreter.utils.model_utils import load_model_s3, load_model
 
 
-def create_results_dict(img, model, save=True):
-    """Predict a given image and output a dictionary of counts for each class
-
-    Args:
-        img (str): Image directory
-        model (pytorch model): chosen model for predictions
+class FloorplanPredictor(object):
+    """
+    Predict segments in a floorplan using pretrained models.
+    Arguments:
+            labels (list): which labels to predict from ["ROOM", "WINDOW", "DOOR",
+    "STAIRCASE", "KITCHEN", "LIVING", "RESTROOM", "BEDROOM", "GARAGE", "OTHER"]
     """
 
-    results = model(img, save=save, verbose=False)
-    class_names = results[0].names
-    class_pred_count = dict(Counter(results[0].boxes.cls.tolist()))
+    def __init__(
+        self,
+        labels_to_predict=[
+            "ROOM",
+            "WINDOW",
+            "DOOR",
+            "STAIRCASE",
+            "KITCHEN",
+            "LIVING",
+            "RESTROOM",
+            "BEDROOM",
+            "GARAGE",
+            "OTHER",
+        ],
+        config_name="base",
+    ):
+        self.labels_to_predict = labels_to_predict
 
-    return {class_names[k]: v for k, v in class_pred_count.items()}
+        # Set variables from the config file
+        config_path = os.path.join(
+            "asf_floorplan_interpreter/config/", config_name + ".yaml"
+        )
+        with open(config_path, "r") as f:
+            config = yaml.load(f, Loader=yaml.FullLoader)
+        self.room_model_name = config["room_model_name"]
+        self.window_door_model_name = config["window_door_model_name"]
+        self.staircase_model_name = config["staircase_model_name"]
+        self.room_type_model_name = config["room_type_model_name"]
 
+    def load(self, local=False):
+        """
+        Only load the models you need
+        """
+        if local:
+            if "ROOM" in self.labels_to_predict:
+                self.room_model = load_model(
+                    f"outputs/models/{self.room_model_name}/weights/best.pt"
+                )
+            if "STAIRCASE" in self.labels_to_predict:
+                self.staircase_model = load_model(
+                    f"outputs/models/{self.staircase_model_name}/weights/best.pt"
+                )
+            if any([label in self.labels_to_predict for label in ["DOOR", "WINDOW"]]):
+                self.window_door_model = load_model(
+                    f"outputs/models/{self.window_door_model_name}/weights/best.pt"
+                )
+            if any(
+                [
+                    label in self.labels_to_predict
+                    for label in [
+                        "KITCHEN",
+                        "LIVING",
+                        "RESTROOM",
+                        "BEDROOM",
+                        "GARAGE",
+                        "OTHER",
+                    ]
+                ]
+            ):
+                self.room_type_model = load_model(
+                    f"outputs/models/{self.room_type_model_name}/weights/best.pt"
+                )
+        else:
+            if "ROOM" in self.labels_to_predict:
+                self.room_model = load_model_s3(self.room_model_name)
+            if "STAIRCASE" in self.labels_to_predict:
+                self.staircase_model = load_model_s3(self.staircase_model_name)
+            if any([label in self.labels_to_predict for label in ["DOOR", "WINDOW"]]):
+                self.window_door_model = load_model_s3(self.window_door_model_name)
+            if any(
+                [
+                    label in self.labels_to_predict
+                    for label in [
+                        "KITCHEN",
+                        "LIVING",
+                        "RESTROOM",
+                        "BEDROOM",
+                        "GARAGE",
+                        "OTHER",
+                    ]
+                ]
+            ):
+                self.room_type_model = load_model_s3(self.room_type_model_name)
 
-def predict_image(local_directory, img):
-    "Collects model from a local location and applies to chosen images"
-    model = load_model(
-        (PROJECT_DIR / f"{local_directory}")
-    )  # e.g. directory = "outputs/models/rooms-model/best.pt"
+    def predict_labels(self, image_url, correct_kitchen=True):
+        labels = []
+        if "ROOM" in self.labels_to_predict:
+            results = self.room_model(image_url, save=False, verbose=False)
+            labels += yolo_2_segments(results)
+        if "STAIRCASE" in self.labels_to_predict:
+            results = self.staircase_model(image_url, save=False, verbose=False)
+            labels += yolo_2_segments(results)
+        if any([label in self.labels_to_predict for label in ["DOOR", "WINDOW"]]):
+            results = self.window_door_model(image_url, save=False, verbose=False)
+            labels += yolo_2_segments(results)
+        if any(
+            [
+                label in self.labels_to_predict
+                for label in [
+                    "KITCHEN",
+                    "LIVING",
+                    "RESTROOM",
+                    "BEDROOM",
+                    "GARAGE",
+                    "OTHER",
+                ]
+            ]
+        ):
+            results = self.room_type_model(image_url, save=False, verbose=False)
+            labels += yolo_2_segments(results)
 
-    return create_results_dict(img, model)
+        # Remove any labels you aren't asking for
+        labels = [label for label in labels if label["label"] in self.labels_to_predict]
 
+        # Get label counts
+        label_counts = defaultdict(int)
+        for label in labels:
+            label_counts[label["label"]] += 1
 
-def full_output(
-    img, room_model, window_door_model, room_type_model, staircase_model=None
-):
-    results = {}
-    results.update(create_results_dict(img, room_model, save=False))
-    results.update(create_results_dict(img, window_door_model, save=False))
-    results.update(create_results_dict(img, room_type_model, save=False))
-    if staircase_model:
-        results.update(create_results_dict(img, staircase_model, save=False))
-    return results
+        # We found the results are best if the output says at least one kitchen per floorplan
+        if correct_kitchen:
+            if "KITCHEN" in label_counts:
+                label_counts["KITCHEN"] = max(label_counts["KITCHEN"], 1)
+
+        return labels, dict(label_counts)
+
+    def plot(self, image_url, labels, output_name, plot_label=True):
+        visual_image = load_image(image_url)
+        visual_image = overlay_boundaries_plot(
+            visual_image, labels, show=False, plot_label=plot_label
+        )
+
+        visual_image.savefig(output_name)

@@ -6,10 +6,10 @@ from asf_floorplan_interpreter.getters.get_data import (
 from asf_floorplan_interpreter import BUCKET_NAME, logger
 import os
 
-from asf_floorplan_interpreter.utils.model_utils import load_model
+from asf_floorplan_interpreter.utils.model_utils import load_model_s3
+from asf_floorplan_interpreter.utils.config_utils import read_base_config
 from asf_floorplan_interpreter.pipeline.predict_floorplan import (
-    create_results_dict,
-    full_output,
+    FloorplanPredictor,
 )
 import torch
 from sklearn.metrics import mean_squared_error
@@ -23,7 +23,7 @@ from datetime import datetime
 def load_process_eval_data(eval_data_file, all_training_floorplans):
     """
     Load the evaluation dataset, remove any rows which were used in training.
-    Create dictionaries of the ground truth results and the econest predictions for each floorplan.
+    Create dictionaries of the ground truth results and the rule-based predictions for each floorplan.
     """
 
     # The evaluation data
@@ -51,8 +51,8 @@ def load_process_eval_data(eval_data_file, all_training_floorplans):
         axis=1,
     )
 
-    # Combine both the door categories in EcoNests predictions
-    eval_data_fresh["eco_total_doors"] = eval_data_fresh.apply(
+    # Combine both the door categories in the rule-based predictions
+    eval_data_fresh["rulebased_total_doors"] = eval_data_fresh.apply(
         lambda x: int(x["doors_internal"]) + int(x["doors_external"])
         if x["doors_internal"] != "#VALUE!"
         else None,
@@ -91,7 +91,7 @@ def load_process_eval_data(eval_data_file, all_training_floorplans):
         .to_dict(orient="index")
     )
 
-    econest_pred_dict = (
+    rule_based_pred_dict = (
         eval_data_fresh[
             [
                 "floorplan_url",
@@ -102,7 +102,7 @@ def load_process_eval_data(eval_data_file, all_training_floorplans):
                 "kitchen",
                 "rooms",
                 "windows",
-                "eco_total_doors",
+                "rulebased_total_doors",
             ]
         ]
         .set_index("floorplan_url")
@@ -115,21 +115,39 @@ def load_process_eval_data(eval_data_file, all_training_floorplans):
                 "kitchen": "KITCHEN",
                 "rooms": "ROOM",
                 "windows": "WINDOW",
-                "eco_total_doors": "DOOR",
+                "rulebased_total_doors": "DOOR",
             }
         )
         .to_dict(orient="index")
     )
 
-    return eval_dict, econest_pred_dict
+    return eval_dict, rule_based_pred_dict
 
 
 if __name__ == "__main__":
-    eval_data_file = "data/annotation/evaluation/Econest_test_set_floorplans_211123.csv"
-    room_model_name = "room_config_yolov8m"
-    window_door_model_name = "window_door_config_yolov8m_wd"
-    staircase_model_name = "staircase_config_yolov8m"
-    room_type_model_name = "room_type_config_yolov8m"
+    # Set variables from the config file
+    config = read_base_config()
+
+    room_model_name = config["room_model_name"]
+    window_door_model_name = config["window_door_model_name"]
+    staircase_model_name = config["staircase_model_name"]
+    room_type_model_name = config["room_type_model_name"]
+    eval_data_file = config["eval_data_file"]
+
+    floorplan_pred = FloorplanPredictor(
+        labels_to_predict=[
+            "ROOM",
+            "WINDOW",
+            "DOOR",
+            "KITCHEN",
+            "LIVING",
+            "RESTROOM",
+            "BEDROOM",
+            "GARAGE",
+            "OTHER",
+        ]
+    )
+    floorplan_pred.load()
 
     today = datetime.now().strftime("%Y%m%d")
 
@@ -153,44 +171,20 @@ if __name__ == "__main__":
         all_training_floorplans += training_images
 
     # Load and process the evaluation data - removing any training floorplans
-    eval_dict, econest_pred_dict = load_process_eval_data(
+    eval_dict, rule_based_pred_dict = load_process_eval_data(
         eval_data_file, all_training_floorplans
-    )
-
-    logger.info("Downloading all the models from S3 and local")
-    for model_name in [
-        room_model_name,
-        window_door_model_name,
-        staircase_model_name,
-        room_type_model_name,
-    ]:
-        os.system(
-            f"aws s3 cp s3://asf-floorplan-interpreter/models/{model_name}/weights/best.pt outputs/models/{model_name}/weights/best.pt"
-        )
-
-    logger.info("Loading all the models")
-    room_model = load_model(
-        os.path.join("outputs/models", room_model_name, "weights/best.pt")
-    )
-    window_door_model = load_model(
-        os.path.join("outputs/models", window_door_model_name, "weights/best.pt")
-    )
-    staircase_model = load_model(
-        os.path.join("outputs/models", staircase_model_name, "weights/best.pt")
-    )
-    room_type_model = load_model(
-        os.path.join("outputs/models", room_type_model_name, "weights/best.pt")
     )
 
     logger.info("Predict numbers of rooms etc for each of the evaluation floorplans")
     pred_dict = {}
     for floorplan_url in tqdm(eval_dict.keys()):
-        results = full_output(
-            floorplan_url,
-            room_model,
-            window_door_model,
-            room_type_model,
-            staircase_model=None,
+        _, results = floorplan_pred.predict_labels(floorplan_url, correct_kitchen=False)
+        results["SUM_ROOM_TYPES"] = sum(
+            [
+                v
+                for k, v in results.items()
+                if k in ["KITCHEN", "LIVING", "RESTROOM", "BEDROOM", "GARAGE", "OTHER"]
+            ]
         )
         pred_dict[floorplan_url] = results
 
@@ -206,15 +200,24 @@ if __name__ == "__main__":
                 [
                     truth_value,
                     pred_dict[floorplan_url].get(label_key, 0),
-                    econest_pred_dict[floorplan_url].get(label_key, None),
+                    rule_based_pred_dict[floorplan_url].get(label_key, None),
                 ]
             )
+            if label_key == "ROOM":
+                # Also add the summed room types
+                per_label_results["SUM_ROOM_TYPES"].append(
+                    [
+                        truth_value,
+                        pred_dict[floorplan_url].get("SUM_ROOM_TYPES", 0),
+                        rule_based_pred_dict[floorplan_url].get(label_key, None),
+                    ]
+                )
         floorplan_urls.append(floorplan_url)
 
     all_results = {
         "results": per_label_results,
         "floorplan_urls": floorplan_urls,
-        "order": ["Truth", "Model prediction", "Econest prediction"],
+        "order": ["Truth", "Model prediction", "Rule-based prediction"],
     }
 
     save_to_s3(
@@ -222,34 +225,48 @@ if __name__ == "__main__":
     )
 
     mse_model_results = {}
-    mse_econest_results = {}
+    mse_rule_based_results = {}
     for label_key, results in all_results["results"].items():
-        if label_key not in ["floorplan_urls", "order"]:
-            model_truth = []
-            econest_truth = []
-            model_pred = []
-            econest_pred = []
-            for t, m, e in results:
-                if pd.notnull(t):
-                    if m != None:
-                        model_truth.append(t)
-                        model_pred.append(m)
-                    if e != None:
-                        if e != "\\N":
-                            econest_truth.append(t)
-                            econest_pred.append(int(e))
-            if model_pred:
-                mse_model_results[label_key] = {
+        model_truth = []
+        rulebased_truth = []
+        model_pred = []
+        rulebased_pred = []
+        for t, m, e in results:
+            if pd.notnull(t):
+                if m != None:
+                    model_truth.append(t)
+                    model_pred.append(m)
+                if e != None:
+                    if e != "\\N":
+                        rulebased_truth.append(t)
+                        rulebased_pred.append(int(e))
+        if model_pred:
+            mse_model_results[label_key] = {
+                "n": len(model_truth),
+                "mse": mean_squared_error(model_truth, model_pred),
+                "rmse": mean_squared_error(model_truth, model_pred, squared=False),
+            }
+            if label_key == "KITCHEN":
+                corrected_model_pred = [
+                    max(1, v) for v in model_pred
+                ]  # If there are 0 kitchens, bump it to 1
+                mse_model_results["KITCHEN_correct"] = {
                     "n": len(model_truth),
-                    "mse": mean_squared_error(model_truth, model_pred),
+                    "mse": mean_squared_error(model_truth, corrected_model_pred),
+                    "rmse": mean_squared_error(
+                        model_truth, corrected_model_pred, squared=False
+                    ),
                 }
-            if econest_pred:
-                mse_econest_results[label_key] = {
-                    "n": len(econest_truth),
-                    "mse": mean_squared_error(econest_truth, econest_pred),
-                }
+        if rulebased_pred:
+            mse_rule_based_results[label_key] = {
+                "n": len(rulebased_truth),
+                "mse": mean_squared_error(rulebased_truth, rulebased_pred),
+                "rmse": mean_squared_error(
+                    rulebased_truth, rulebased_pred, squared=False
+                ),
+            }
     mse_results = {
-        "econest_prediction_mse": mse_econest_results,
+        "rulebased_prediction_mse": mse_rule_based_results,
         "model_prediction_mse": mse_model_results,
     }
 
