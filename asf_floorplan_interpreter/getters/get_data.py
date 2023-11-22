@@ -7,10 +7,28 @@ import boto3
 from fnmatch import fnmatch
 import yaml
 
+from decimal import Decimal
+import numpy
+
+import pandas as pd
+
 
 def get_s3_resource():
     s3 = boto3.resource("s3")
     return s3
+
+
+class CustomJsonEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, Decimal):
+            return float(obj)
+        elif isinstance(obj, numpy.integer):
+            return int(obj)
+        elif isinstance(obj, numpy.floating):
+            return float(obj)
+        elif isinstance(obj, numpy.ndarray):
+            return obj.tolist()
+        return super(CustomJsonEncoder, self).default(obj)
 
 
 def load_prodigy_jsonl_s3_data(bucket_name, file_name):
