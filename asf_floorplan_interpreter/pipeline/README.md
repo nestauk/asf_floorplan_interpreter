@@ -1,6 +1,30 @@
-## Train a model to recognise doors and windows
+# :house: Floorplan Interpreter
 
-## :file_folder: Roboflow data
+In this directory is the code to:
+
+- Create floorplan labelling tasks - see [the Prodigy folder README](asf_floorplan_interpreter/pipeline/annotation/README.md)
+- Train a model to predict segments in floorplans - `train_yolo.py`
+- Use these models to predict segments - `predict_floorplan.py`
+- Evaluate the pipeline - `evaluate.py`
+
+## 🔨 High level usage
+
+You can quickly load the trained models and make predictions on a floor plan url using the following code:
+
+```
+from asf_floorplan_interpreter.pipeline.predict_floorplan import FloorplanPredictor
+
+img = 'https://storage.googleapis.com/econest_properties/properties/44179/floorplans/04caf9ae5fe266b7d235824407b2a81fbd3e6f37.jpg'
+
+fp = FloorplanPredictor(predict_labels = ["WINDOW", "DOOR","KITCHEN", "LIVING", "RESTROOM", "BEDROOM", "GARAGE", "OTHER"])
+fp.load(local=False)
+fp.plot(img, "outputs/figures/test_fp.png")
+
+```
+
+## Training data
+
+### 🤖 Roboflow data
 
 There is [an existing annotation dataset of UK floorplans](https://universe.roboflow.com/prop/room-separation-instance/dataset/5) on Roboflow.
 This consists of:
@@ -22,9 +46,9 @@ This dataset is stored on S3 [here](s3://asf-floorplan-interpreter/data/roboflow
 
 Warning: ultralytics requires the parent data folder to be called "datasets".
 
-## :file_folder: Our own labelled data
+### 💥 Our own labelled data
 
-We created datasets of labelled data using Prodigy.
+We created datasets of labelled data using Prodigy - see more about this process in [the Prodigy folder README](asf_floorplan_interpreter/pipeline/annotation/README.md). These are:
 
 1. Labelling rooms (`room_dataset.jsonl`).
 2. Labelling doors, windows and staircases (`window_door_staircase.jsonl`).
@@ -38,7 +62,7 @@ python asf_floorplan_interpreter/pipeline/prodigy_to_yolo.py
 
 This will output the images and the labels in various S3 locations.
 
-## :file_folder: Roboflow plus our own labelled data for windows and doors
+### :file_folder: Roboflow plus our own labelled data for windows and doors
 
 Run
 
@@ -110,14 +134,14 @@ names: ["DOOR", "DOUBLE DOOR", "FOLDING DOOR", "ROOM", "SLIDING DOOR", "WINDOW"]
 
 we provide the paths to the training, test and validation sets (i.e. `data/roboflow_data/images/train` etc), as well as telling YOLO we want to train 6 class (`nc` = number of classes) and the names of these 6 classes (`names`). Yolo will then map each class to a number. The names of the classes should map to what's in the training datasets (i.e if class 2 was "folding door" then `names` should have folding door as the 2nd element.
 
-## Trained models
+### Trained models
 
 - `models/window_door_config_yolov8m_wd/`
 - `models/room_config_yolov8m/`
 - `models/staircase_config_yolov8m/`
 - `models/room_type_config_yolov8m/`
 
-## Evaluation
+## 🧮 Evaluation
 
 Each model is evaluated on its validation dataset, and metrics are stored in the different model output folders.
 
