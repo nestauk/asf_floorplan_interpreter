@@ -3,18 +3,20 @@
 In this directory is the code to:
 
 - Create floorplan labelling tasks - see [the Prodigy folder README](annotation/README.md)
-- Train a model to predict segments in floorplans - `train_yolo.py`
-- Use these models to predict segments - `predict_floorplan.py`
+- Train a model to predict segments in floorplans
+  - [Training datasets used](#training-data)
+  - [Training](#training)
+- Use these models to [predict segments](#-high-level-usage)
 - Evaluate the pipeline - see [the evaluation folder README](evaluation/README.md)
 
 ## 🔨 High level usage
 
-You can quickly load the trained models and make predictions on a floor plan url using the following code:
+You can quickly load the trained models and make predictions on a floor plan url or local directory using the following code:
 
 ```
 from asf_floorplan_interpreter.pipeline.predict_floorplan import FloorplanPredictor
 
-img = 'outputs/figures/floorplan.png'
+img = 'outputs/figures/floorplan.png' # Local directory or a URL to an image file
 
 fp = FloorplanPredictor(labels_to_predict = ["WINDOW", "DOOR","KITCHEN", "LIVING", "RESTROOM", "BEDROOM", "GARAGE"])
 fp.load(local=True)
@@ -45,44 +47,41 @@ There is [an existing annotation dataset of UK floorplans](https://universe.robo
 - Validation = 65 images
 - Test = 54 images
 
-This dataset contains polygon annotations with 6 classes:
+This dataset contains polygon annotations with 6 classes including "Door", "Double door","Folding door", "Room", "Sliding door", "Window".
 
-1. Door
-2. Double door
-3. Folding door
-4. Room
-5. Sliding door
-6. Window
+This dataset is stored on S3 in the `/data/roboflow_data/` folder.
 
-This dataset is stored on S3 [here](s3://asf-floorplan-interpreter/data/roboflow_data/).
+After an initial check we felt like the window and door labels were good and useful, but the room labels did not meet our needs.
 
 ### 💥 Our own labelled data
 
-We created datasets of labelled data using Prodigy - see more about this process in [the Prodigy folder README](asf_floorplan_interpreter/pipeline/annotation/README.md). These are:
+We also created datasets of labelled data using Prodigy - see more about this process in [the Prodigy folder README](asf_floorplan_interpreter/pipeline/annotation/README.md). The latest for these are stored in the S3 location `/data/annotation/prodigy_labelled/211123/`, and include:
 
 1. Labelling rooms (`room_dataset.jsonl`).
 2. Labelling doors, windows and staircases (`window_door_staircase.jsonl`).
 3. Labelling room types from the room labels (`room_type_dataset.jsonl`).
 
-To convert these Prodigy labels to format needed for YOLO, run:
+To use this data to train a YOLO model we needed to format the data in a different way, and also to store the data in a specific folder structure - where the train/test/validation datasets are split out into different folders.
+
+Thus, to convert these Prodigy labels to format needed for YOLO, run:
 
 ```
 python asf_floorplan_interpreter/pipeline/prodigy_to_yolo.py
 ```
 
-This will output the images and the labels in various S3 locations.
+This will output the images and the labels in the S3 sub directory `data/annotation/prodigy_labelled/211123/yolo_formatted/` for each dataset.
 
 ### :file_folder: Roboflow plus our own labelled data for windows and doors
 
-Run
+Since the Roboflow data for windows and doors was useful, we decided to merge this with the data we'd already labelled using Prodigy. This can be done by running:
 
 ```
 python asf_floorplan_interpreter/pipeline/merge_prodigy_roboflow.py
 ```
 
-to merge the windows and door labels from the Roboflow dataset and the Prodigy dataset. This will output data to `data/annotation/prodigy_labelled/131123/yolo_formatted/window_door_prodigy_plus_roboflow` and will take some time to run.
+This will output data to `data/annotation/prodigy_labelled/131123/yolo_formatted/window_door_prodigy_plus_roboflow` and will take some time to run.
 
-Any other classes other than windows and doors will be removed from the labelled dataset.
+Any other classes other than windows and doors will be removed from this particular labelled dataset.
 
 ## :muscle: Training
 
@@ -93,7 +92,7 @@ cd asf_floorplan_interpreter/pipeline/
 python train_yolo.py --package-suffixes=.txt,.yaml,.jpg --datastore=s3 run --config_file configs/CONFIG_NAME.yaml
 ```
 
-This will train the model and output the best model in [this S3 location](https://s3.console.aws.amazon.com/s3/buckets/asf-floorplan-interpreter?region=eu-west-2&prefix=window_door_config/&showversions=false).
+This will train the model and output the best model in the S3 location `/models/CONFIG_NAME/`.
 
 If you want to get the model and the evaluation files locally from a model you have trained run:
 
@@ -152,3 +151,5 @@ The trained models we use in evaluation and prediction are the following:
 - `models/room_config_yolov8m/`
 - `models/staircase_config_yolov8m/`
 - `models/room_type_config_yolov8m/`
+
+in each of these S3 locations the model file to use is in `weights/best.pt`.
