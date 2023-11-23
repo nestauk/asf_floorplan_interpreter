@@ -230,6 +230,10 @@ def split_save_data(
         the validation data is the evaluation data
     """
 
+    logger.warning(
+        f"You should start off running this script with the {output_folder_name} folder cleared out"
+    )
+
     s3 = boto3.resource("s3")
     bucket = s3.Bucket(name=BUCKET_NAME)
 

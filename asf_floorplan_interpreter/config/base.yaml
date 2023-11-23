@@ -19,5 +19,5 @@ eval_data_file: "data/annotation/evaluation/Econest_test_set_floorplans_211123.c
 hw_json_path: "data/annotation/prodigy_labelled/quality_dataset.jsonl"
 prodigy_labelled_date:
   room_dataset: "211123"
-  window_door_staircase_dataset": "211123"
-  room_type_from_labels_dataset": "211123"
+  window_door_staircase_dataset: "211123"
+  room_type_from_labels_dataset: "211123"
