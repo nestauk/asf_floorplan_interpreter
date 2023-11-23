@@ -27,7 +27,9 @@ def evaluate_model(true_labels, pred_labels):
 
 def yolo_2_segments(results):
     segments = []
-    for (x, y, w, h), label in zip(results[0].boxes.xywh, results[0].boxes.cls):
+    for (x, y, w, h), label, conf in zip(
+        results[0].boxes.xywh, results[0].boxes.cls, results[0].boxes.conf.numpy()
+    ):
         x_min = x.item() - (w.item() / 2)
         y_min = y.item() - (h.item() / 2)
         x_max = x.item() + (w.item() / 2)
@@ -38,6 +40,7 @@ def yolo_2_segments(results):
                 "label": results[0].names[label.item()],
                 "points": segment,
                 "type": "polygon",
+                "confidence": round(conf, 3),
             }
         )
     return segments

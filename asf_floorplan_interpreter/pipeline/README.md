@@ -18,7 +18,7 @@ img = 'outputs/figures/floorplan.png'
 
 fp = FloorplanPredictor(labels_to_predict = ["WINDOW", "DOOR","KITCHEN", "LIVING", "RESTROOM", "BEDROOM", "GARAGE"])
 fp.load(local=True)
-labels, label_counts = fp.predict_labels(img)
+labels, label_counts = fp.predict_labels(img, conf_threshold=0)
 fp.plot(img, labels, "outputs/figures/floorplan_prediction.png", plot_label=False)
 
 ```
@@ -30,6 +30,10 @@ The image created will look like the following.
 <p align="center">
   <img src="../../outputs/figures/floorplan_prediction.png" />
 </p>
+
+You can tweak the `conf_threshold` argument to only output labels with a higher confidence in the predicted result.
+
+In the above example, running `labels, label_counts = fp.predict_labels(img, conf_threshold=0.5)` gives 2 fewer doors (cupboard doors were removed) and 1 fewer kitchen (the mislabelled dining room is removed as a kitchen label).
 
 ## Training data
 

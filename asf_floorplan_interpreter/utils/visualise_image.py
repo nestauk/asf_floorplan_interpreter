@@ -1,5 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.patches import Rectangle
+
 from PIL import Image, ImageDraw, ImageFont
 from asf_floorplan_interpreter.getters.get_data import (
     load_prodigy_jsonl_s3_data,
@@ -83,8 +85,10 @@ def overlay_boundaries_plot(
     draw = ImageDraw.Draw(visual_image)
 
     # Overlay bounding boxes and labels on the image
+    labels_found = set()
     for label in labels:
         if label["type"] == "polygon":
+            labels_found.add(label["label"])
             label["color"] = label_colors.get(label["label"], "black")
             points = label["points"]
             for i in range(len(points)):
@@ -103,8 +107,17 @@ def overlay_boundaries_plot(
                 )  # Adjust font and fill color as needed
 
     # Display the image with the overlaid bounding boxes and labels
+    handles = [
+        Rectangle((0, 0), 1, 1, color=v)
+        for k, v in label_colors.items()
+        if k in labels_found
+    ]
+    labels = [k for k in label_colors.keys() if k in labels_found]
+
     plt.imshow(np.array(visual_image))
     plt.axis("off")
+    if not plot_label:
+        plt.legend(handles, labels, loc=(1.04, 0.5), fontsize="small")
     if show:
         plt.show()
     else:

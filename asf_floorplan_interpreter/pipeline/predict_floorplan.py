@@ -13,10 +13,20 @@ from asf_floorplan_interpreter.utils.model_utils import load_model_s3, load_mode
 
 class FloorplanPredictor(object):
     """
-    Predict segments in a floorplan using pretrained models.
+    Predict segments and the counts of each label type in a floorplan using pretrained models.
     Arguments:
-            labels (list): which labels to predict from ["ROOM", "WINDOW", "DOOR",
-    "STAIRCASE", "KITCHEN", "LIVING", "RESTROOM", "BEDROOM", "GARAGE", "OTHER"]
+        labels (list): which labels to predict from ["ROOM", "WINDOW", "DOOR",
+    "STAIRCASE", "KITCHEN", "LIVING", "RESTROOM", "BEDROOM", "GARAGE", "OTHER"] this list will inform
+        which models are needed.
+        config_name (str): the name of the config file to use. This file will give the names of the
+            models to use.
+
+    Methods:
+        load: Load the neccessary models
+        predict_labels: Input an image URL or local pathway and output where the label segments are,
+            as well as counts of each label.
+        plot: Plot the label segments on the original floorplan image.
+
     """
 
     def __init__(
@@ -103,7 +113,21 @@ class FloorplanPredictor(object):
             ):
                 self.room_type_model = load_model_s3(self.room_type_model_name)
 
-    def predict_labels(self, image_url, correct_kitchen=True):
+    def predict_labels(self, image_url, correct_kitchen=True, conf_threshold=0):
+        """
+        Predict label segments and a counts of labels using the loaded models for a floorplan.
+
+        Arguments:
+            image_url (str): A URL or a local directory of your floorplan image.
+            correct_kitchen (bool): Whether to at a minimum predict 1 kitchen per floorplan (True) or not (False).
+            conf_threshold (float): The prediction confidence threshold for outputted labels.
+
+        Outputs:
+            labels (list): A list of the predicted image segments for each label, this is in the form
+                [{'label': 'DOOR', 'points': [[525.348, 319.445], ...], 'type': 'polygon', 'confidence': 0.9}, ...]
+            label_counts (dict): A summary of the counts of all labels found for this image. For example,
+                {'DOOR': 12, 'WINDOW': 10, 'LIVING': 2, 'KITCHEN': 2, 'BEDROOM': 3, 'RESTROOM': 1}
+        """
         labels = []
         if "ROOM" in self.labels_to_predict:
             results = self.room_model(image_url, save=False, verbose=False)
@@ -130,8 +154,15 @@ class FloorplanPredictor(object):
             results = self.room_type_model(image_url, save=False, verbose=False)
             labels += yolo_2_segments(results)
 
-        # Remove any labels you aren't asking for
-        labels = [label for label in labels if label["label"] in self.labels_to_predict]
+        # Remove any labels you aren't asking for and only if the prediction probability is over a threshold
+        labels = [
+            label
+            for label in labels
+            if (
+                (label["label"] in self.labels_to_predict)
+                and (label["confidence"] >= conf_threshold)
+            )
+        ]
 
         # Get label counts
         label_counts = defaultdict(int)
@@ -146,9 +177,18 @@ class FloorplanPredictor(object):
         return labels, dict(label_counts)
 
     def plot(self, image_url, labels, output_name, plot_label=True):
+        """
+        Plot your predicted labels on the floorplan
+
+        Arguments:
+            image_url (str): A URL or a local directory of your floorplan image.
+            labels (list): The list of labels, in the format returned from running predict_labels.
+            output_name (str): The directory for the outputted image.
+            plot_label (bool): Whether to plot the text of each bounding box label or not.
+        """
         visual_image = load_image(image_url)
         visual_image = overlay_boundaries_plot(
             visual_image, labels, show=False, plot_label=plot_label
         )
 
-        visual_image.savefig(output_name)
+        visual_image.savefig(output_name, bbox_inches="tight")
