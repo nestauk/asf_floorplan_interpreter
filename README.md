@@ -6,6 +6,8 @@ This repo contains code needed to create the training data and train an image se
   <img src="outputs/figures/floorplan_prediction.png" />
 </p>
 
+Please refer to the [README in the pipeline folder](asf_floorplan_interpreter/pipeline/README.md) for more information about the methodology, usage and results.
+
 ## Setup
 
 - Meet the data science cookiecutter [requirements](http://nestauk.github.io/ds-cookiecutter/quickstart), in brief:
@@ -15,10 +17,6 @@ This repo contains code needed to create the training data and train an image se
   - Configure `pre-commit`
   - Set-up Metaflow `export METAFLOW_PROFILE=floorplan` and `direnv reload`
   - Make sure your `METAFLOW_USER` name has no fullstops in.
-
-## :file_folder: Pipeline
-
-Please refer to the [README in the pipeline folder](asf_floorplan_interpreter/pipeline/README.md) for more information.
 
 ## Contributor guidelines
 

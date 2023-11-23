@@ -5,7 +5,7 @@ In this directory is the code to:
 - Create floorplan labelling tasks - see [the Prodigy folder README](annotation/README.md)
 - Train a model to predict segments in floorplans
   - [Training datasets used](#training-data)
-  - [Training](#training)
+  - [Training](#muscle-training)
 - Use these models to [predict segments](#-high-level-usage)
 - Evaluate the pipeline - see [the evaluation folder README](evaluation/README.md)
 
@@ -103,7 +103,7 @@ aws s3 sync s3://asf-floorplan-interpreter/models/{MODEL_NAME}/ models/{MODEL_NA
 
 where `MODEL_NAME` will be the name of the config file you used to train the model, plus any suffix that was given in this config, e.g. `window_door_config_yolov8m_wd`.
 
-The metaflow files are in this location: https://s3.console.aws.amazon.com/s3/buckets/open-jobs-lake?prefix=metaflow/FloorPlanYolo/&region=eu-west-1
+The metaflow files are in [this location](https://s3.console.aws.amazon.com/s3/buckets/open-jobs-lake?prefix=metaflow/FloorPlanYolo/&region=eu-west-1).
 
 ### 📓 Configs
 
