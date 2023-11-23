@@ -25,7 +25,7 @@ fp.plot(img, labels, "outputs/figures/floorplan_prediction.png", plot_label=Fals
 
 ```
 
-`label_counts` will give the counts of each label, in this case `{'DOOR': 12, 'WINDOW': 10, 'KITCHEN': 1, 'BEDROOM': 4, 'RESTROOM': 1, 'LIVING': 1}`.
+`label_counts` will give the counts of each label, in this case `{'DOOR': 6, 'WINDOW': 4, 'KITCHEN': 1, 'RESTROOM': 2, 'BEDROOM': 2}`.
 
 The image created will look like the following.
 
@@ -35,7 +35,7 @@ The image created will look like the following.
 
 You can tweak the `conf_threshold` argument to only output labels with a higher confidence in the predicted result.
 
-In the above example, running `labels, label_counts = fp.predict_labels(img, conf_threshold=0.5)` gives 2 fewer doors (cupboard doors were removed).
+In the above example, running `labels, label_counts = fp.predict_labels(img, conf_threshold=0.5)` gives 1 fewer window (the window to the balcony was removed).
 
 ## Training data
 
