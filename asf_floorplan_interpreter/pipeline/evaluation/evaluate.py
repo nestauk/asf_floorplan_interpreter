@@ -124,6 +124,56 @@ def load_process_eval_data(eval_data_file, all_training_floorplans):
     return eval_dict, rule_based_pred_dict
 
 
+def calculate_mse_results(all_results):
+    mse_model_results = {}
+    mse_rule_based_results = {}
+    for label_key, results in all_results["results"].items():
+        model_truth = []
+        rulebased_truth = []
+        model_pred = []
+        rulebased_pred = []
+        for t, m, e in results:
+            if pd.notnull(t):
+                if m != None:
+                    model_truth.append(t)
+                    model_pred.append(m)
+                if e != None:
+                    if e != "\\N":
+                        rulebased_truth.append(t)
+                        rulebased_pred.append(int(e))
+        if model_pred:
+            mse_model_results[label_key] = {
+                "n": len(model_truth),
+                "mse": mean_squared_error(model_truth, model_pred),
+                "rmse": mean_squared_error(model_truth, model_pred, squared=False),
+            }
+            if label_key == "KITCHEN":
+                corrected_model_pred = [
+                    max(1, v) for v in model_pred
+                ]  # If there are 0 kitchens, bump it to 1
+                mse_model_results["KITCHEN_correct"] = {
+                    "n": len(model_truth),
+                    "mse": mean_squared_error(model_truth, corrected_model_pred),
+                    "rmse": mean_squared_error(
+                        model_truth, corrected_model_pred, squared=False
+                    ),
+                }
+        if rulebased_pred:
+            mse_rule_based_results[label_key] = {
+                "n": len(rulebased_truth),
+                "mse": mean_squared_error(rulebased_truth, rulebased_pred),
+                "rmse": mean_squared_error(
+                    rulebased_truth, rulebased_pred, squared=False
+                ),
+            }
+    mse_results = {
+        "rulebased_prediction_mse": mse_rule_based_results,
+        "model_prediction_mse": mse_model_results,
+    }
+
+    return mse_results
+
+
 if __name__ == "__main__":
     # Set variables from the config file
     config = read_base_config()
@@ -177,8 +227,11 @@ if __name__ == "__main__":
 
     logger.info("Predict numbers of rooms etc for each of the evaluation floorplans")
     pred_dict = {}
+    pred_dict_raw = {}
     for floorplan_url in tqdm(eval_dict.keys()):
-        _, results = floorplan_pred.predict_labels(floorplan_url, correct_kitchen=False)
+        labels, results = floorplan_pred.predict_labels(
+            floorplan_url, correct_kitchen=False
+        )
         results["SUM_ROOM_TYPES"] = sum(
             [
                 v
@@ -187,6 +240,7 @@ if __name__ == "__main__":
             ]
         )
         pred_dict[floorplan_url] = results
+        pred_dict_raw[floorplan_url] = labels
 
     # Everytime you predict from an S3 image, the image is downloaded.. so clean these up
     os.system("rm *.jpg")
@@ -224,51 +278,13 @@ if __name__ == "__main__":
         BUCKET_NAME, all_results, os.path.join(output_folder, "all_results.json")
     )
 
-    mse_model_results = {}
-    mse_rule_based_results = {}
-    for label_key, results in all_results["results"].items():
-        model_truth = []
-        rulebased_truth = []
-        model_pred = []
-        rulebased_pred = []
-        for t, m, e in results:
-            if pd.notnull(t):
-                if m != None:
-                    model_truth.append(t)
-                    model_pred.append(m)
-                if e != None:
-                    if e != "\\N":
-                        rulebased_truth.append(t)
-                        rulebased_pred.append(int(e))
-        if model_pred:
-            mse_model_results[label_key] = {
-                "n": len(model_truth),
-                "mse": mean_squared_error(model_truth, model_pred),
-                "rmse": mean_squared_error(model_truth, model_pred, squared=False),
-            }
-            if label_key == "KITCHEN":
-                corrected_model_pred = [
-                    max(1, v) for v in model_pred
-                ]  # If there are 0 kitchens, bump it to 1
-                mse_model_results["KITCHEN_correct"] = {
-                    "n": len(model_truth),
-                    "mse": mean_squared_error(model_truth, corrected_model_pred),
-                    "rmse": mean_squared_error(
-                        model_truth, corrected_model_pred, squared=False
-                    ),
-                }
-        if rulebased_pred:
-            mse_rule_based_results[label_key] = {
-                "n": len(rulebased_truth),
-                "mse": mean_squared_error(rulebased_truth, rulebased_pred),
-                "rmse": mean_squared_error(
-                    rulebased_truth, rulebased_pred, squared=False
-                ),
-            }
-    mse_results = {
-        "rulebased_prediction_mse": mse_rule_based_results,
-        "model_prediction_mse": mse_model_results,
-    }
+    save_to_s3(
+        BUCKET_NAME,
+        pred_dict_raw,
+        os.path.join(output_folder, "all_results_raw_labels.json"),
+    )
+
+    mse_results = calculate_mse_results(all_results)
 
     save_to_s3(
         BUCKET_NAME, mse_results, os.path.join(output_folder, "mse_results.json")

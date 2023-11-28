@@ -49,7 +49,7 @@ class FloorplanPredictor(object):
 
         # Set variables from the config file
         config_path = os.path.join(
-            "asf_floorplan_interpreter/config/", config_name + ".yaml"
+            PROJECT_DIR, "asf_floorplan_interpreter/config/", config_name + ".yaml"
         )
         with open(config_path, "r") as f:
             config = yaml.load(f, Loader=yaml.FullLoader)
@@ -63,17 +63,22 @@ class FloorplanPredictor(object):
         Only load the models you need
         """
         if local:
+            local_dir = os.path.join(PROJECT_DIR, "outputs/models/")
             if "ROOM" in self.labels_to_predict:
                 self.room_model = load_model(
-                    f"outputs/models/{self.room_model_name}/weights/best.pt"
+                    os.path.join(local_dir, f"{self.room_model_name}/weights/best.pt")
                 )
             if "STAIRCASE" in self.labels_to_predict:
                 self.staircase_model = load_model(
-                    f"outputs/models/{self.staircase_model_name}/weights/best.pt"
+                    os.path.join(
+                        local_dir, f"{self.staircase_model_name}/weights/best.pt"
+                    )
                 )
             if any([label in self.labels_to_predict for label in ["DOOR", "WINDOW"]]):
                 self.window_door_model = load_model(
-                    f"outputs/models/{self.window_door_model_name}/weights/best.pt"
+                    os.path.join(
+                        local_dir, f"{self.window_door_model_name}/weights/best.pt"
+                    )
                 )
             if any(
                 [
@@ -89,7 +94,9 @@ class FloorplanPredictor(object):
                 ]
             ):
                 self.room_type_model = load_model(
-                    f"outputs/models/{self.room_type_model_name}/weights/best.pt"
+                    os.path.join(
+                        local_dir, f"{self.room_type_model_name}/weights/best.pt"
+                    )
                 )
         else:
             if "ROOM" in self.labels_to_predict:
