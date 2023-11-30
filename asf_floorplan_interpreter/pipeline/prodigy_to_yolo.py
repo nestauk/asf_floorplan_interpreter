@@ -13,7 +13,9 @@ from asf_floorplan_interpreter.getters.get_data import (
     save_to_s3,
     load_s3_data,
 )
-from asf_floorplan_interpreter import BUCKET_NAME
+from asf_floorplan_interpreter import BUCKET_NAME, logger
+
+from asf_floorplan_interpreter.utils.config_utils import read_base_config
 
 
 def scale_points_by_hw(lst, width, height):
@@ -74,7 +76,7 @@ def convert_prodigy_file(file_name, object_to_class_dict, use_all=False):
                 prod_time_test[image_url] = prod_label["_timestamp"]
 
     yolo_labels = [(k, v) for k, v in yolo_labels.items()]
-    print(
+    logger.info(
         f"Original data was {len(data)} annotations, filtered for accepted labels and deduplicated gives us {len(yolo_labels)} annotations"
     )
     return yolo_labels
@@ -93,29 +95,31 @@ def transform_room_type_json(original_json_path, hw_json_path):
     transformed_data = {}
 
     # Iterate through the original data
+
     for item in room_dict:
         if item.get("answer") == "accept":
             image_id = item["image"]
             if image_id not in transformed_data:
                 transformed_data[image_id] = {"image": image_id, "spans": []}
-
             # Extract the relevant information from the item
             accept_options = item.get("accept", [])
             options = item.get("options", [])
-            spans = {
-                "label": [
-                    option["text"]
-                    for option in options
-                    if option["id"] in accept_options
-                ][0],
-                "points": item["spans"][0][
-                    "points"
-                ],  # Assuming there's always one span
-                "type": item["spans"][0]["type"],
-            }
-
-            # Append the span to the image's 'span' list
-            transformed_data[image_id]["spans"].append(spans)
+            if (
+                accept_options
+            ):  # I'm not sure why but sometimes this is [] which causes an error
+                spans = {
+                    "label": [
+                        option["text"]
+                        for option in options
+                        if option["id"] in accept_options
+                    ][0],
+                    "points": item["spans"][0][
+                        "points"
+                    ],  # Assuming there's always one span
+                    "type": item["spans"][0]["type"],
+                }
+                # Append the span to the image's 'span' list
+                transformed_data[image_id]["spans"].append(spans)
 
     # Convert the transformed data to a list of dictionaries
     transformed_data_list = list(transformed_data.values())
@@ -182,13 +186,13 @@ def count_label_types(data):
 
 def check_room_output(transformed_data_list):
     """Runs the helper functions to check the conversion has worked"""
-    print(f"Total images represented: {len(transformed_data_list)}")
-    print(f"Total rooms by type: {count_label_types(transformed_data_list)}")
+    logger.info(f"Total images represented: {len(transformed_data_list)}")
+    logger.info(f"Total rooms by type: {count_label_types(transformed_data_list)}")
     duplicated = find_identical_points(transformed_data_list)
     if len(duplicated) > 0:
-        print("Caution, duplicate points found")
+        logger.info("Caution, duplicate points found")
     else:
-        print("No duplicate labels found")
+        logger.info("No duplicate labels found")
 
 
 def convert_room_type_to_yolo(data, object_to_class_dict):
@@ -202,13 +206,34 @@ def convert_room_type_to_yolo(data, object_to_class_dict):
         yolo_labels[image_url] = yolo_label
 
     yolo_labels = [(k, v) for k, v in yolo_labels.items()]
-    print(
+    logger.info(
         f"Original data was {len(data)} annotations, filtered for accepted labels and deduplicated gives us {len(yolo_labels)} annotations"
     )
     return yolo_labels
 
 
-def split_save_data(yolo_labels, train_prop, test_prop, output_folder_name):
+def split_save_data(
+    yolo_labels, eval_floorplan_urls, train_prop, test_prop, output_folder_name
+):
+    """
+    Arguments:
+        yolo_labels (list): the labelled floorplans in the format needed for Yolo
+        eval_floorplan_urls (list): the urls for the floorplans in the final pipeline evaluation dataset (counts of rooms)
+        train_prop (float): proportion of data in the training set
+        test_prop (float): proportion of data in the test set
+        output_folder_name (str): the folder name to output the test/train/val data splits into
+
+    A note on test/evaluation:
+        When we are testing this specific image segmentation model at how well it segments the image we use the test+validation datasets
+        When we are evaluating the final room count outputs of the entire pipeline we use the evaluation dataset
+        We don't want to evaluate the model with data which was used in the train or test datasets, so try to make it so most of (if not all) of
+        the validation data is the evaluation data
+    """
+
+    logger.warning(
+        f"You should start off running this script with the {output_folder_name} folder cleared out"
+    )
+
     s3 = boto3.resource("s3")
     bucket = s3.Bucket(name=BUCKET_NAME)
 
@@ -216,16 +241,39 @@ def split_save_data(yolo_labels, train_prop, test_prop, output_folder_name):
     random.seed(42)
     random.shuffle(yolo_labels)
 
-    train_data_n = round(len(yolo_labels) * train_prop)
-    test_data_n = round(len(yolo_labels) * test_prop)
-    print(f"Saving {train_data_n} image in the training set")
-    print(f"Saving {test_data_n} image in the test set")
-    print(
-        f"Saving {len(yolo_labels) - (train_data_n+test_data_n)} image in the val set"
+    # Separate out the floorplans which are in the evaluation dataset
+    yolo_labels_not_eval = [y for y in yolo_labels if y[0] not in eval_floorplan_urls]
+    yolo_labels_in_eval = [y for y in yolo_labels if y[0] in eval_floorplan_urls]
+    logger.info(
+        f"{len(yolo_labels_in_eval)} labelled images were in the evaluation dataset"
+    )
+
+    # Order so that the labels in the evaluation dataset are at the end
+    yolo_labels_ordered = yolo_labels_not_eval + yolo_labels_in_eval
+
+    train_data_n = round(len(yolo_labels_ordered) * train_prop)  # e.g. 60
+    test_data_n = round(len(yolo_labels_ordered) * test_prop)  # e.g. 20
+
+    # Abandoned: There is more evaluation data than validation, so we are eating into the size
+    # of our training set. Best to train on as much as we can, and cut out some of the evaluation data if needed.
+    # Only include floorplans not in the evaluation data in the train + test
+    # val_data_n = len(yolo_labels_ordered) - (train_data_n+test_data_n) # e.g. 20
+    # eval_difference = len(yolo_labels_in_eval) - val_data_n # e.g 30 - 20 = 10
+    # if eval_difference > 0:
+    #     # If there are more eval floorplans than the size of the validation data
+    #     # then we need to rebalance the train/test split
+    #     logger.info(f"Rebalancing the train/test split to a 80/20 split since there are more evaluation floorplans than the desired validation size")
+    #     train_data_n = round(len(yolo_labels_not_eval) * 0.8) # e.g. 56
+    #     test_data_n = round(len(yolo_labels_not_eval) * 0.2) # e.g. 14
+
+    logger.info(f"Saving {train_data_n} image in the training set")
+    logger.info(f"Saving {test_data_n} image in the test set")
+    logger.info(
+        f"Saving {len(yolo_labels_ordered) - (train_data_n+test_data_n)} image in the val set"
     )
 
     # Save labels and download + save images too
-    for i, floorplan_labels in enumerate(yolo_labels):
+    for i, floorplan_labels in enumerate(yolo_labels_ordered):
         image_url = floorplan_labels[0]
         yolo_label = "\n".join(floorplan_labels[1])
         image_name = image_url.split("/")[-1].split(".")[0]
@@ -254,18 +302,31 @@ def split_save_data(yolo_labels, train_prop, test_prop, output_folder_name):
 
 
 if __name__ == "__main__":
+    config = read_base_config()
     prodigy_labelled_date = {
-        "room_dataset": "131123",
-        "window_door_staircase_dataset": "131123",
-        "room_type_dataset": "131123",
+        "room_dataset": config["prodigy_labelled_date"]["room_dataset"],
+        "window_door_staircase_dataset": config["prodigy_labelled_date"][
+            "window_door_staircase_dataset"
+        ],
+        "room_type_from_labels_dataset": config["prodigy_labelled_date"][
+            "room_type_from_labels_dataset"
+        ],
     }
-    hw_json_path = "data/annotation/prodigy_labelled/quality_dataset.jsonl"
+    hw_json_path = config["hw_json_path"]
+
+    # Our hold out evaluation data (manually labelled with final room counts)
+    eval_data = load_s3_data(BUCKET_NAME, config["eval_data_file"])
+    eval_floorplan_urls = eval_data[
+        pd.notnull(eval_data["total_rooms"]) & eval_data["total_rooms"] != 0
+    ]["floorplan_url"].tolist()
+
     train_prop = 0.6
     test_prop = 0.2
     # val_prop = 1 - (train_prop + test_prop) # Dont need to set this
     if train_prop + test_prop == 1:
         print("Warning - there will be no data in the validation set")
 
+    # ================================================================
     print("Process the room dataset")
 
     prodigy_labelled_dir = (
@@ -279,48 +340,57 @@ if __name__ == "__main__":
         "ROOM": 0,
     }
     room_yolo_labels = convert_prodigy_file(prod_file_name, object_to_class_dict)
-    split_save_data(room_yolo_labels, train_prop, test_prop, yolo_data_folder_name)
-
-    print("Process the window/door/staircase dataset")
-
-    prodigy_labelled_dir = f"data/annotation/prodigy_labelled/{prodigy_labelled_date['window_door_staircase_dataset']}"
-    prod_file_name = os.path.join(prodigy_labelled_dir, "window_door_staircase.jsonl")
-    yolo_data_folder_name = os.path.join(
-        prodigy_labelled_dir, "yolo_formatted/window_door_staircase_yolo_formatted"
-    )
-    object_to_class_dict = {
-        "WINDOW": 0,
-        "DOOR": 1,
-        "STAIRCASE": 2,
-    }
-
-    window_door_yolo_labels = convert_prodigy_file(prod_file_name, object_to_class_dict)
     split_save_data(
-        window_door_yolo_labels, train_prop, test_prop, yolo_data_folder_name
+        room_yolo_labels,
+        eval_floorplan_urls,
+        train_prop,
+        test_prop,
+        yolo_data_folder_name,
     )
 
-    print("Process just windows and doors dataset")
+    # # ================================================================
+    # print("Process the window/door/staircase dataset")
 
-    prodigy_labelled_dir = f"data/annotation/prodigy_labelled/{prodigy_labelled_date['window_door_staircase_dataset']}"
-    prod_file_name = os.path.join(prodigy_labelled_dir, "window_door_staircase.jsonl")
-    yolo_data_folder_name = os.path.join(
-        prodigy_labelled_dir, "yolo_formatted/window_door_yolo_formatted"
-    )
-    object_to_class_dict = {
-        "WINDOW": 0,
-        "DOOR": 1,
-    }
-    window_door_yolo_labels = convert_prodigy_file(prod_file_name, object_to_class_dict)
-    split_save_data(
-        window_door_yolo_labels, train_prop, test_prop, yolo_data_folder_name
-    )
+    # prodigy_labelled_dir = f"data/annotation/prodigy_labelled/{prodigy_labelled_date['window_door_staircase_dataset']}"
+    # prod_file_name = os.path.join(prodigy_labelled_dir, "window_door_staircase.jsonl")
+    # yolo_data_folder_name = os.path.join(
+    #     prodigy_labelled_dir, "yolo_formatted/window_door_staircase_yolo_formatted"
+    # )
+    # object_to_class_dict = {
+    #     "WINDOW": 0,
+    #     "DOOR": 1,
+    #     "STAIRCASE": 2,
+    # }
 
+    # window_door_yolo_labels = convert_prodigy_file(prod_file_name, object_to_class_dict)
+    # split_save_data(
+    #     window_door_yolo_labels, eval_floorplan_urls, train_prop, test_prop, yolo_data_folder_name
+    # )
+
+    # # ================================================================
+    # print("Process just windows and doors dataset")
+
+    # prodigy_labelled_dir = f"data/annotation/prodigy_labelled/{prodigy_labelled_date['window_door_staircase_dataset']}"
+    # prod_file_name = os.path.join(prodigy_labelled_dir, "window_door_staircase.jsonl")
+    # yolo_data_folder_name = os.path.join(
+    #     prodigy_labelled_dir, "yolo_formatted/window_door_yolo_formatted"
+    # )
+    # object_to_class_dict = {
+    #     "WINDOW": 0,
+    #     "DOOR": 1,
+    # }
+    # window_door_yolo_labels = convert_prodigy_file(prod_file_name, object_to_class_dict)
+    # split_save_data(
+    #     window_door_yolo_labels, eval_floorplan_urls, train_prop, test_prop, yolo_data_folder_name
+    # )
+
+    # ================================================================
     print("Process room type dataset")
 
-    prodigy_labelled_dir = (
-        f"data/annotation/prodigy_labelled/{prodigy_labelled_date['room_type_dataset']}"
+    prodigy_labelled_dir = f"data/annotation/prodigy_labelled/{prodigy_labelled_date['room_type_from_labels_dataset']}"
+    prod_file_name = os.path.join(
+        prodigy_labelled_dir, "room_type_from_labels_dataset.jsonl"
     )
-    prod_file_name = os.path.join(prodigy_labelled_dir, "room_type_dataset.jsonl")
     yolo_data_folder_name = os.path.join(
         prodigy_labelled_dir, "yolo_formatted/room_type_yolo_formatted"
     )
@@ -337,15 +407,28 @@ if __name__ == "__main__":
     room_type_yolo_labels = convert_room_type_to_yolo(
         prodigy_convert, object_to_class_dict
     )
-    split_save_data(room_type_yolo_labels, train_prop, test_prop, yolo_data_folder_name)
+    split_save_data(
+        room_type_yolo_labels,
+        eval_floorplan_urls,
+        train_prop,
+        test_prop,
+        yolo_data_folder_name,
+    )
 
+    # ================================================================
     print("Process just staircase dataset")
 
+    prodigy_labelled_dir = f"data/annotation/prodigy_labelled/{prodigy_labelled_date['window_door_staircase_dataset']}"
     prod_file_name = os.path.join(prodigy_labelled_dir, "window_door_staircase.jsonl")
     yolo_data_folder_name = os.path.join(
         prodigy_labelled_dir, "yolo_formatted/staircase_yolo_formatted"
     )
     object_to_class_dict = {"STAIRCASE": 0}
     staircase_yolo_labels = convert_prodigy_file(prod_file_name, object_to_class_dict)
-    split_save_data(staircase_yolo_labels, train_prop, test_prop, yolo_data_folder_name)
-
+    split_save_data(
+        staircase_yolo_labels,
+        eval_floorplan_urls,
+        train_prop,
+        test_prop,
+        yolo_data_folder_name,
+    )

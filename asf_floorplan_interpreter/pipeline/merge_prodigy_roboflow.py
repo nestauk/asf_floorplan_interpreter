@@ -12,17 +12,23 @@ from asf_floorplan_interpreter.getters.get_data import (
     get_s3_data_paths,
 )
 from asf_floorplan_interpreter import BUCKET_NAME
+from asf_floorplan_interpreter.utils.config_utils import read_base_config
 
 from collections import Counter
 import os
 from tqdm import tqdm
+import pandas as pd
 
 if __name__ == "__main__":
-    prodigy_labelled_dir = "data/annotation/prodigy_labelled/301023"
+    config = read_base_config()
+
+    prodigy_labelled_dir = f"data/annotation/prodigy_labelled/{config['prodigy_labelled_date']['window_door_staircase_dataset']}"
     roboflow_dir = "data/roboflow_data"
     output_dir = os.path.join(
         prodigy_labelled_dir, "yolo_formatted/window_door_prodigy_plus_roboflow"
     )
+
+    eval_data = load_s3_data(BUCKET_NAME, config["eval_data_file"])
 
     object_to_class_dict = {
         "WINDOW": 0,
@@ -75,6 +81,10 @@ if __name__ == "__main__":
     # train_prop = roboflow_split['train']/(roboflow_split['train'] + roboflow_split['test'] + roboflow_split['val']) # 0.92
     # test_prop = roboflow_split['test']/(roboflow_split['train'] + roboflow_split['test'] + roboflow_split['val']) # 0.03
 
+    eval_floorplan_urls = eval_data[
+        pd.notnull(eval_data["total_rooms"]) & eval_data["total_rooms"] != 0
+    ]["floorplan_url"].tolist()
+
     train_prop = 0.6
     test_prop = 0.2
     # val_prop = 1 - (train_prop + test_prop) # Dont need to set this
@@ -84,4 +94,6 @@ if __name__ == "__main__":
     prod_file_name = os.path.join(prodigy_labelled_dir, "window_door_staircase.jsonl")
 
     window_door_yolo_labels = convert_prodigy_file(prod_file_name, object_to_class_dict)
-    split_save_data(window_door_yolo_labels, train_prop, test_prop, output_dir)
+    split_save_data(
+        window_door_yolo_labels, eval_floorplan_urls, train_prop, test_prop, output_dir
+    )
