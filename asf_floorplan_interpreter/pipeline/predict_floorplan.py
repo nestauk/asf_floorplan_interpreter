@@ -135,6 +135,14 @@ class FloorplanPredictor(object):
             label_counts (dict): A summary of the counts of all labels found for this image. For example,
                 {'DOOR': 12, 'WINDOW': 10, 'LIVING': 2, 'KITCHEN': 2, 'BEDROOM': 3, 'RESTROOM': 1}
         """
+
+        if os.path.exists(os.path.join(PROJECT_DIR, image_url)):
+            image_url = os.path.join(PROJECT_DIR, image_url)
+        else:
+            print(
+                f"{os.path.join(PROJECT_DIR, image_url)} doesn't exist locally, assuming it is a url"
+            )
+
         labels = []
         if "ROOM" in self.labels_to_predict:
             results = self.room_model(image_url, save=False, verbose=False)
@@ -179,7 +187,7 @@ class FloorplanPredictor(object):
         # We found the results are best if the output says at least one kitchen per floorplan
         if correct_kitchen:
             if "KITCHEN" in label_counts:
-                label_counts["KITCHEN"] = max(label_counts["KITCHEN"], 1)
+                label_counts["KITCHEN"] = 1
 
         return labels, dict(label_counts)
 
@@ -193,9 +201,18 @@ class FloorplanPredictor(object):
             output_name (str): The directory for the outputted image.
             plot_label (bool): Whether to plot the text of each bounding box label or not.
         """
+        if os.path.exists(os.path.join(PROJECT_DIR, image_url)):
+            image_url = os.path.join(PROJECT_DIR, image_url)
+        else:
+            print(
+                f"{os.path.join(PROJECT_DIR, image_url)} doesn't exist locally, assuming it is a url"
+            )
+
         visual_image = load_image(image_url)
         visual_image = overlay_boundaries_plot(
             visual_image, labels, show=False, plot_label=plot_label
         )
 
-        visual_image.savefig(output_name, bbox_inches="tight")
+        visual_image.savefig(
+            os.path.join(PROJECT_DIR, output_name), bbox_inches="tight"
+        )

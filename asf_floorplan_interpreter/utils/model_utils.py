@@ -26,6 +26,14 @@ def evaluate_model(true_labels, pred_labels):
 
 
 def yolo_2_segments(results):
+    """
+    Convert the YOLO model prediction output from bounding boxes to segmentation points format.
+    Needed for labelling in Prodigy or for use in predict_floorplan.py
+
+    The (x, y) coordinates of the bounding box represent the center of the box,
+    while in the segmentation format, the coordinates represent the corners of the polygon.
+    See https://github.com/ultralytics/ultralytics/issues/3592.
+    """
     segments = []
     for (x, y, w, h), label, conf in zip(
         results[0].boxes.xywh, results[0].boxes.cls, results[0].boxes.conf.numpy()

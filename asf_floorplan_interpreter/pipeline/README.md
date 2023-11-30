@@ -19,7 +19,7 @@ from asf_floorplan_interpreter.pipeline.predict_floorplan import FloorplanPredic
 img = 'outputs/figures/floorplan.png' # Local directory or a URL to an image file
 
 fp = FloorplanPredictor(labels_to_predict = ["WINDOW", "DOOR","KITCHEN", "LIVING", "RESTROOM", "BEDROOM", "GARAGE"])
-fp.load(local=True)
+fp.load(local=False) # Set local=True if you have previously downloaded the models
 labels, label_counts = fp.predict_labels(img, conf_threshold=0)
 fp.plot(img, labels, "outputs/figures/floorplan_prediction.png", plot_label=False)
 
@@ -55,7 +55,7 @@ After an initial check we felt like the window and door labels were good and use
 
 ### 💥 Our own labelled data
 
-We also created datasets of labelled data using Prodigy - see more about this process in [the Prodigy folder README](asf_floorplan_interpreter/pipeline/annotation/README.md). The latest for these are stored in the S3 location `/data/annotation/prodigy_labelled/211123/`, and include:
+We also created datasets of labelled data using Prodigy - see more about this process in [the Prodigy folder README](asf_floorplan_interpreter/pipeline/annotation/README.md). The latest for these are stored in the S3 location `/data/annotation/prodigy_labelled/{PRODIGY_DATA_CREATION_DATE}/`, and include:
 
 1. Labelling rooms (`room_dataset.jsonl`).
 2. Labelling doors, windows and staircases (`window_door_staircase.jsonl`).
@@ -69,7 +69,9 @@ Thus, to convert these Prodigy labels to format needed for YOLO, run:
 python asf_floorplan_interpreter/pipeline/prodigy_to_yolo.py
 ```
 
-This will output the images and the labels in the S3 sub directory `data/annotation/prodigy_labelled/211123/yolo_formatted/` for each dataset.
+This will output the images and the labels in the S3 sub directory `data/annotation/prodigy_labelled/{PRODIGY_DATA_CREATION_DATE}/yolo_formatted/` for each dataset.
+
+Where `PRODIGY_DATA_CREATION_DATE` is the date stamp the Prodigy labelled data was created on.
 
 ### :file_folder: Roboflow plus our own labelled data for windows and doors
 
@@ -79,7 +81,7 @@ Since the Roboflow data for windows and doors was useful, we decided to merge th
 python asf_floorplan_interpreter/pipeline/merge_prodigy_roboflow.py
 ```
 
-This will output data to `data/annotation/prodigy_labelled/131123/yolo_formatted/window_door_prodigy_plus_roboflow` and will take some time to run.
+This will output data to `data/annotation/prodigy_labelled/{PRODIGY_DATA_CREATION_DATE}/yolo_formatted/window_door_prodigy_plus_roboflow` and will take some time to run.
 
 Any other classes other than windows and doors will be removed from this particular labelled dataset.
 
