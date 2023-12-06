@@ -1,0 +1,8 @@
+path: "data/annotation/prodigy_labelled/211123/yolo_formatted/room_yolo_formatted/"
+train: images/train
+val: images/val
+test: images/test
+save_dir: "room_save_dir/"
+
+nc: 1
+names: ["ROOM"]

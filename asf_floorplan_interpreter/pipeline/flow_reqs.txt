@@ -1,0 +1,6 @@
+numpy
+pandas
+ultralytics
+scikit-learn
+metaflow==2.7.14
+PyYAML
