@@ -21,3 +21,4 @@ prodigy_labelled_date:
   room_dataset: "211123"
   window_door_staircase_dataset: "211123"
   room_type_from_labels_dataset: "211123"
+unique_floorplan_file: "data/floorplans/unique_floorplan_urls_2023_09.txt"

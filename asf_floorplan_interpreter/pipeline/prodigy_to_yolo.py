@@ -16,6 +16,7 @@ from asf_floorplan_interpreter.getters.get_data import (
 from asf_floorplan_interpreter import BUCKET_NAME, logger
 
 from asf_floorplan_interpreter.utils.config_utils import read_base_config
+from asf_floorplan_interpreter.utils.visualise_image import load_image
 
 
 def scale_points_by_hw(lst, width, height):
@@ -59,21 +60,22 @@ def convert_prod_to_yolo(prod_label, object_to_class_dict):
     return final_format
 
 
-def convert_prodigy_file(file_name, object_to_class_dict, use_all=False):
+def convert_prodigy_file(file_name, object_to_class_dict, unique_images, use_all=False):
     data = load_prodigy_jsonl_s3_data(BUCKET_NAME, file_name)
 
     yolo_labels = {}
     prod_time_test = {}
     for prod_label in data:
-        if use_all or prod_label["answer"] == "accept":
-            yolo_label = convert_prod_to_yolo(prod_label, object_to_class_dict)
-            image_url = prod_label["image"]
-            # Use the latest label if an image has come up more than once
-            if prod_label["_timestamp"] > prod_time_test.get(image_url, 0):
-                yolo_labels[
-                    image_url
-                ] = yolo_label  # Will get replaced with the most recent
-                prod_time_test[image_url] = prod_label["_timestamp"]
+        if prod_label["image"] in unique_images:
+            if use_all or prod_label["answer"] == "accept":
+                yolo_label = convert_prod_to_yolo(prod_label, object_to_class_dict)
+                image_url = prod_label["image"]
+                # Use the latest label if an image has come up more than once
+                if prod_label["_timestamp"] > prod_time_test.get(image_url, 0):
+                    yolo_labels[
+                        image_url
+                    ] = yolo_label  # Will get replaced with the most recent
+                    prod_time_test[image_url] = prod_label["_timestamp"]
 
     yolo_labels = [(k, v) for k, v in yolo_labels.items()]
     logger.info(
@@ -290,8 +292,6 @@ def split_save_data(
         yolo_label = "\n".join(floorplan_labels[1])
         image_name = image_url.split("/")[-1].split(".")[0]
 
-        image_data = requests.get(image_url).content
-
         if i in range(0, train_data_n):
             data_type = "train"
         elif i in range(train_data_n, (train_data_n + test_data_n)):
@@ -299,16 +299,35 @@ def split_save_data(
         else:
             data_type = "val"
 
+        image_data = requests.get(image_url).content
         # Save the image
         bucket.upload_fileobj(
             BytesIO(image_data),
             os.path.join(output_folder_name, f"images/{data_type}/{image_name}.jpg"),
         )
+        # Save the image in black and white
+        visual_image = load_image(image_url)
+        bw_image = visual_image.convert("L")  # this converts it to B&W
+        bucket.upload_fileobj(
+            BytesIO(bw_image),
+            os.path.join(
+                output_folder_name + "_bw", f"images/{data_type}/{image_name}.jpg"
+            ),
+        )
+
         # Save the labels
         save_to_s3(
             BUCKET_NAME,
             yolo_label,
             os.path.join(output_folder_name, f"labels/{data_type}/{image_name}.txt"),
+            verbose=False,
+        )
+        save_to_s3(
+            BUCKET_NAME,
+            yolo_label,
+            os.path.join(
+                output_folder_name + "_bw", f"labels/{data_type}/{image_name}.txt"
+            ),
             verbose=False,
         )
 
@@ -338,6 +357,9 @@ if __name__ == "__main__":
     if train_prop + test_prop == 1:
         print("Warning - there will be no data in the validation set")
 
+    # Get the list of unique floorplans
+    unique_images = load_s3_data(BUCKET_NAME, config["unique_floorplan_file"])
+
     # ================================================================
     print("Process the room dataset")
 
@@ -351,7 +373,9 @@ if __name__ == "__main__":
     object_to_class_dict = {
         "ROOM": 0,
     }
-    room_yolo_labels = convert_prodigy_file(prod_file_name, object_to_class_dict)
+    room_yolo_labels = convert_prodigy_file(
+        prod_file_name, object_to_class_dict, unique_images
+    )
     split_save_data(
         room_yolo_labels,
         eval_floorplan_urls,
@@ -374,7 +398,7 @@ if __name__ == "__main__":
     #     "STAIRCASE": 2,
     # }
 
-    # window_door_yolo_labels = convert_prodigy_file(prod_file_name, object_to_class_dict)
+    # window_door_yolo_labels = convert_prodigy_file(prod_file_name, object_to_class_dict, unique_images)
     # split_save_data(
     #     window_door_yolo_labels, eval_floorplan_urls, train_prop, test_prop, yolo_data_folder_name
     # )
@@ -391,7 +415,7 @@ if __name__ == "__main__":
     #     "WINDOW": 0,
     #     "DOOR": 1,
     # }
-    # window_door_yolo_labels = convert_prodigy_file(prod_file_name, object_to_class_dict)
+    # window_door_yolo_labels = convert_prodigy_file(prod_file_name, object_to_class_dict, unique_images)
     # split_save_data(
     #     window_door_yolo_labels, eval_floorplan_urls, train_prop, test_prop, yolo_data_folder_name
     # )
@@ -436,7 +460,9 @@ if __name__ == "__main__":
         prodigy_labelled_dir, "yolo_formatted/staircase_yolo_formatted"
     )
     object_to_class_dict = {"STAIRCASE": 0}
-    staircase_yolo_labels = convert_prodigy_file(prod_file_name, object_to_class_dict)
+    staircase_yolo_labels = convert_prodigy_file(
+        prod_file_name, object_to_class_dict, unique_images
+    )
     split_save_data(
         staircase_yolo_labels,
         eval_floorplan_urls,

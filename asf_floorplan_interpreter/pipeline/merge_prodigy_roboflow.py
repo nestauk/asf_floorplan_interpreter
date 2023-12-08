@@ -28,6 +28,9 @@ if __name__ == "__main__":
         prodigy_labelled_dir, "yolo_formatted/window_door_prodigy_plus_roboflow"
     )
 
+    # Get the list of unique floorplans
+    unique_images = load_s3_data(BUCKET_NAME, config["unique_floorplan_file"])
+
     eval_data = load_s3_data(BUCKET_NAME, config["eval_data_file"])
 
     object_to_class_dict = {
@@ -93,7 +96,9 @@ if __name__ == "__main__":
 
     prod_file_name = os.path.join(prodigy_labelled_dir, "window_door_staircase.jsonl")
 
-    window_door_yolo_labels = convert_prodigy_file(prod_file_name, object_to_class_dict)
+    window_door_yolo_labels = convert_prodigy_file(
+        prod_file_name, object_to_class_dict, unique_images
+    )
     split_save_data(
         window_door_yolo_labels, eval_floorplan_urls, train_prop, test_prop, output_dir
     )
