@@ -117,6 +117,8 @@ def transform_room_type_json(original_json_path, hw_json_path):
                         "points"
                     ],  # Assuming there's always one span
                     "type": item["spans"][0]["type"],
+                    "input_hash": item["_input_hash"],
+                    "task_id": item["_task_hash"],
                 }
                 # Append the span to the image's 'span' list
                 transformed_data[image_id]["spans"].append(spans)
@@ -199,6 +201,16 @@ def convert_room_type_to_yolo(data, object_to_class_dict):
     yolo_labels = {}
 
     for prod_label in data:
+        # Remove duplicate labels, keep the first one only (i.e. in the same floorplan a room has been labelled twice)
+        task_ids = set()
+        new_spans = []
+        for span in prod_label["spans"]:
+            if span["task_id"] not in task_ids:
+                new_spans.append(span)
+                task_ids.add(span["task_id"])
+
+        prod_label["spans"] = new_spans
+
         yolo_label = convert_prod_to_yolo(prod_label, object_to_class_dict)
         image_url = prod_label["image"]
 
