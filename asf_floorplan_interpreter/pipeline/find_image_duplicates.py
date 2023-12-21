@@ -32,9 +32,10 @@ if __name__ == "__main__":
         floorplan_urls.append(image_url)
 
     _, uix = np.unique(image_hashes, return_index=True)
-    unique_images = [image_url[i] for i in uix]
+    unique_images = [floorplan_urls[i] for i in uix]
 
-    save_to_s3(
-        BUCKET_NAME, unique_images, "data/floorplans/unique_floorplan_urls_2023_09.txt"
-    )
-    print(f"{len(unique_images)} of the {len(floorplan_urls)} urls are unique images")
+save_to_s3(
+    BUCKET_NAME, unique_images, "data/floorplans/unique_floorplan_urls_2023_09.json"
+)
+print(f"{len(unique_images)} of the {len(floorplan_urls)} urls are unique images")
+# 495 of the 497 urls are unique images

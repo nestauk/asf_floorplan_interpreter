@@ -306,10 +306,17 @@ def split_save_data(
             os.path.join(output_folder_name, f"images/{data_type}/{image_name}.jpg"),
         )
         # Save the image in black and white
-        visual_image = load_image(image_url)
-        bw_image = visual_image.convert("L")  # this converts it to B&W
+
+        # Save the image to an in-memory file
+        pil_image = load_image(image_url)
+        pil_image = pil_image.convert("L")
+        in_mem_file = BytesIO()
+        pil_image.save(in_mem_file, format="JPEG")
+        in_mem_file.seek(0)
+
+        # Upload image to s3
         bucket.upload_fileobj(
-            BytesIO(bw_image),
+            in_mem_file,
             os.path.join(
                 output_folder_name + "_bw", f"images/{data_type}/{image_name}.jpg"
             ),
@@ -358,7 +365,7 @@ if __name__ == "__main__":
         print("Warning - there will be no data in the validation set")
 
     # Get the list of unique floorplans
-    unique_images = load_s3_data(BUCKET_NAME, config["unique_floorplan_file"])
+    unique_images = set(load_s3_data(BUCKET_NAME, config["unique_floorplan_file"]))
 
     # ================================================================
     print("Process the room dataset")

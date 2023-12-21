@@ -78,12 +78,20 @@ Where `PRODIGY_DATA_CREATION_DATE` is the date stamp the Prodigy labelled data w
 Since the Roboflow data for windows and doors was useful, we decided to merge this with the data we'd already labelled using Prodigy. This can be done by running:
 
 ```
-python asf_floorplan_interpreter/pipeline/merge_prodigy_roboflow.py
+python asf_floorplan_interpreter/pipeline/merge_prodigy_roboflow.py --add_prodigy
 ```
 
 This will output data to `data/annotation/prodigy_labelled/{PRODIGY_DATA_CREATION_DATE}/yolo_formatted/window_door_prodigy_plus_roboflow` and will take some time to run.
 
 Any other classes other than windows and doors will be removed from this particular labelled dataset.
+
+If you run
+
+```
+python asf_floorplan_interpreter/pipeline/merge_prodigy_roboflow.py --extended_doors
+```
+
+Then another set of data will be created, using just the Roboflow dataset and its varied types of door categories (sliding, folding, double). This will output the floorplans and labels to `data/annotation/roboflow_formatted/window_door_types/`.
 
 ## :muscle: Training
 
@@ -120,6 +128,8 @@ The main configs to choose from are:
 3. `configs/window_door_config.yaml`: To train a model that will identify windows, and doors using our labelled dataset plus that from Roboflow.
 4. `configs/staircase_config.yaml`: To train a model to identify staircases
 5. `configs/room_type_config.yaml`: To train a model to identify specific room types ("RESTROOM", "BEDROOM", "KITCHEN", "LIVING", "GARAGE", "OTHER")
+6. `configs/room_type_bw_config.yaml`: To train a model to identify specific room types ("RESTROOM", "BEDROOM", "KITCHEN", "LIVING", "GARAGE", "OTHER") using black and white floor plan training data.
+7. `configs/window_door_types_roboflow_config.yaml`: To train a model that will identify windows and different door types ("WINDOW", "DOOR", "DOUBLE_DOOR", "FOLDING_DOOR", "SLIDING_DOOR") just using the Roboflow dataset.
 
 There are also test versions of some of these which will run more quickly `configs/roboflow_test_config.yaml` and `configs/room_test_config.yaml`.
 
