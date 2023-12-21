@@ -44,7 +44,7 @@ For the `20231221/` evaluation we calculate the root mean squared error (RMSE) b
 
 | Entity type      | Rule-based RMSE | Model prediction RMSE | Model better? | Number of floorplans in calculation | Average number per floorplan |
 | ---------------- | --------------- | --------------------- | ------------- | ----------------------------------- | ---------------------------- |
-| ALL_DOORS        | 7.27            | 2.5                   | ✅            | 28                                  | 12.9                         |
+| ALL_DOORS        | 6.22            | 2.10                  | ✅            | 42                                  | 12.9                         |
 | DOOR             | -               | 1.18                  | ✅            | 42                                  | 10.0                         |
 | DOUBLE_DOOR      | -               | 1.60                  | ✅            | 28                                  | 2.1                          |
 | WINDOW           | 4.71            | 1.90                  | ✅            | 42                                  | 10.1                         |
