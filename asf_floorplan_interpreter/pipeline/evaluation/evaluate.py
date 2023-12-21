@@ -61,13 +61,13 @@ def load_process_eval_data(eval_data_file, all_training_floorplans):
 
     # Combine both the door categories in the labelled data
     def combine_door_types(double_door, door):
-        if double_door:
-            if door:
+        if pd.notnull(double_door):
+            if pd.notnull(door):
                 return double_door + door
             else:
                 return double_door
         else:
-            if door:
+            if pd.notnull(door):
                 return door
             else:
                 return None
