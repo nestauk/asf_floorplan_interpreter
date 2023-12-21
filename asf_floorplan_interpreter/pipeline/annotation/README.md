@@ -47,6 +47,26 @@ aws s3 cp asf_floorplan_interpreter/pipeline/annotation/prodigy_labelled/window_
 
 ```
 
+## Just stairs:
+
+To create a dataset of just staircase labels:]
+
+```
+prodigy image.manual staircase_dataset asf_floorplan_interpreter/pipeline/annotation/floorplans.jsonl --label STAIRCASE --loader jsonl
+
+```
+
+```
+prodigy db-out staircase_dataset > asf_floorplan_interpreter/pipeline/annotation/prodigy_labelled/staircase_dataset.jsonl
+```
+
+Save it to S3:
+
+```
+aws s3 cp asf_floorplan_interpreter/pipeline/annotation/prodigy_labelled/staircase_dataset.jsonl s3://asf-floorplan-interpreter/data/annotation/prodigy_labelled/211223/staircase_dataset.jsonl
+
+```
+
 ## Room model:
 
 This will use the pretrained model to help label ROOM.
