@@ -138,7 +138,7 @@ class FloorplanPredictor(object):
         image_url,
         correct_kitchen=True,
         correct_staircase=True,
-        conf_threshold=0.4,
+        conf_threshold=0,
     ):
         """
         Predict label segments and a counts of labels using the loaded models for a floorplan.
@@ -217,7 +217,7 @@ class FloorplanPredictor(object):
             if "STAIRCASE" in label_counts:
                 label_counts["STAIRCASE"] = np.ceil(label_counts["STAIRCASE"] / 2)
 
-        if ("DOOR" in label_counts) or ("DOUBLE_DOOR") in label_counts:
+        if ("DOOR" in label_counts) or ("DOUBLE_DOOR" in label_counts):
             label_counts["ALL_DOORS"] = label_counts.get("DOOR", 0) + label_counts.get(
                 "DOUBLE_DOOR", 0
             )
