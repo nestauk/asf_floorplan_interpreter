@@ -10,6 +10,8 @@ from asf_floorplan_interpreter.utils.visualise_image import (
 
 from asf_floorplan_interpreter.utils.model_utils import load_model_s3, load_model
 
+import numpy as np
+
 
 class FloorplanPredictor(object):
     """
@@ -35,6 +37,7 @@ class FloorplanPredictor(object):
             "ROOM",
             "WINDOW",
             "DOOR",
+            "DOUBLE_DOOR",
             "STAIRCASE",
             "KITCHEN",
             "LIVING",
@@ -74,7 +77,12 @@ class FloorplanPredictor(object):
                         local_dir, f"{self.staircase_model_name}/weights/best.pt"
                     )
                 )
-            if any([label in self.labels_to_predict for label in ["DOOR", "WINDOW"]]):
+            if any(
+                [
+                    label in self.labels_to_predict
+                    for label in ["DOOR", "DOUBLE_DOOR", "WINDOW"]
+                ]
+            ):
                 self.window_door_model = load_model(
                     os.path.join(
                         local_dir, f"{self.window_door_model_name}/weights/best.pt"
@@ -103,7 +111,12 @@ class FloorplanPredictor(object):
                 self.room_model = load_model_s3(self.room_model_name)
             if "STAIRCASE" in self.labels_to_predict:
                 self.staircase_model = load_model_s3(self.staircase_model_name)
-            if any([label in self.labels_to_predict for label in ["DOOR", "WINDOW"]]):
+            if any(
+                [
+                    label in self.labels_to_predict
+                    for label in ["DOOR", "DOUBLE_DOOR", "WINDOW"]
+                ]
+            ):
                 self.window_door_model = load_model_s3(self.window_door_model_name)
             if any(
                 [
@@ -120,7 +133,13 @@ class FloorplanPredictor(object):
             ):
                 self.room_type_model = load_model_s3(self.room_type_model_name)
 
-    def predict_labels(self, image_url, correct_kitchen=True, conf_threshold=0):
+    def predict_labels(
+        self,
+        image_url,
+        correct_kitchen=True,
+        correct_staircase=True,
+        conf_threshold=0.4,
+    ):
         """
         Predict label segments and a counts of labels using the loaded models for a floorplan.
 
@@ -150,7 +169,12 @@ class FloorplanPredictor(object):
         if "STAIRCASE" in self.labels_to_predict:
             results = self.staircase_model(image_url, save=False, verbose=False)
             labels += yolo_2_segments(results)
-        if any([label in self.labels_to_predict for label in ["DOOR", "WINDOW"]]):
+        if any(
+            [
+                label in self.labels_to_predict
+                for label in ["DOOR", "DOUBLE_DOOR", "WINDOW"]
+            ]
+        ):
             results = self.window_door_model(image_url, save=False, verbose=False)
             labels += yolo_2_segments(results)
         if any(
@@ -188,6 +212,15 @@ class FloorplanPredictor(object):
         if correct_kitchen:
             if "KITCHEN" in label_counts:
                 label_counts["KITCHEN"] = 1
+
+        if correct_staircase:
+            if "STAIRCASE" in label_counts:
+                label_counts["STAIRCASE"] = np.ceil(label_counts["STAIRCASE"] / 2)
+
+        if ("DOOR" in label_counts) or ("DOUBLE_DOOR") in label_counts:
+            label_counts["ALL_DOORS"] = label_counts.get("DOOR", 0) + label_counts.get(
+                "DOUBLE_DOOR", 0
+            )
 
         return labels, dict(label_counts)
 
