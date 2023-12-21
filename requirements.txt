@@ -1,5 +1,7 @@
 numpy
 pandas
+boto3
+s3fs
 ultralytics>=8.0.191
 scikit-learn
 metaflow==2.7.14
