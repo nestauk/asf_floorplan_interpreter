@@ -39,20 +39,21 @@ def convert_prod_to_yolo(prod_label, object_to_class_dict):
     w = prod_label["width"]
     h = prod_label["height"]
 
-    for i in range(0, len(prod_label["spans"])):
-        # Get the class and output the corresponding number
-        # Don't include this class in the output if it's not in object_to_class_dict
-        if prod_label["spans"][i]["label"] in object_to_class_dict:
-            class_no = object_to_class_dict[prod_label["spans"][i]["label"]]
+    if "spans" in prod_label:
+        for i in range(0, len(prod_label["spans"])):
+            # Get the class and output the corresponding number
+            # Don't include this class in the output if it's not in object_to_class_dict
+            if prod_label["spans"][i]["label"] in object_to_class_dict:
+                class_no = object_to_class_dict[prod_label["spans"][i]["label"]]
 
-            # Get the polygon points, scale by the width and height of the image
-            points = prod_label["spans"][i]["points"]
-            scaled_list = scale_points_by_hw(points, w, h)
-            flat_list = [item for sublist in scaled_list for item in sublist]
+                # Get the polygon points, scale by the width and height of the image
+                points = prod_label["spans"][i]["points"]
+                scaled_list = scale_points_by_hw(points, w, h)
+                flat_list = [item for sublist in scaled_list for item in sublist]
 
-            # Combine scaled points with class number
-            total_shape = [class_no] + flat_list
-            output_list.append(total_shape)
+                # Combine scaled points with class number
+                total_shape = [class_no] + flat_list
+                output_list.append(total_shape)
 
     # Flatten from list to string
     final_format = [" ".join(map(str, item)) for item in output_list]
@@ -60,16 +61,18 @@ def convert_prod_to_yolo(prod_label, object_to_class_dict):
     return final_format
 
 
-def convert_prodigy_file(file_name, object_to_class_dict, unique_images, use_all=False):
+def convert_prodigy_file(
+    file_name, object_to_class_dict, unique_images, use_all=False, image_key="image"
+):
     data = load_prodigy_jsonl_s3_data(BUCKET_NAME, file_name)
 
     yolo_labels = {}
     prod_time_test = {}
     for prod_label in data:
-        if prod_label["image"] in unique_images:
+        if prod_label[image_key] in unique_images:
             if use_all or prod_label["answer"] == "accept":
                 yolo_label = convert_prod_to_yolo(prod_label, object_to_class_dict)
-                image_url = prod_label["image"]
+                image_url = prod_label[image_key]
                 # Use the latest label if an image has come up more than once
                 if prod_label["_timestamp"] > prod_time_test.get(image_url, 0):
                     yolo_labels[
@@ -349,6 +352,7 @@ if __name__ == "__main__":
         "room_type_from_labels_dataset": config["prodigy_labelled_date"][
             "room_type_from_labels_dataset"
         ],
+        "staircase_dataset": config["prodigy_labelled_date"]["staircase_dataset"],
     }
     hw_json_path = config["hw_json_path"]
 
@@ -391,42 +395,6 @@ if __name__ == "__main__":
         yolo_data_folder_name,
     )
 
-    # # ================================================================
-    # print("Process the window/door/staircase dataset")
-
-    # prodigy_labelled_dir = f"data/annotation/prodigy_labelled/{prodigy_labelled_date['window_door_staircase_dataset']}"
-    # prod_file_name = os.path.join(prodigy_labelled_dir, "window_door_staircase.jsonl")
-    # yolo_data_folder_name = os.path.join(
-    #     prodigy_labelled_dir, "yolo_formatted/window_door_staircase_yolo_formatted"
-    # )
-    # object_to_class_dict = {
-    #     "WINDOW": 0,
-    #     "DOOR": 1,
-    #     "STAIRCASE": 2,
-    # }
-
-    # window_door_yolo_labels = convert_prodigy_file(prod_file_name, object_to_class_dict, unique_images)
-    # split_save_data(
-    #     window_door_yolo_labels, eval_floorplan_urls, train_prop, test_prop, yolo_data_folder_name
-    # )
-
-    # # ================================================================
-    # print("Process just windows and doors dataset")
-
-    # prodigy_labelled_dir = f"data/annotation/prodigy_labelled/{prodigy_labelled_date['window_door_staircase_dataset']}"
-    # prod_file_name = os.path.join(prodigy_labelled_dir, "window_door_staircase.jsonl")
-    # yolo_data_folder_name = os.path.join(
-    #     prodigy_labelled_dir, "yolo_formatted/window_door_yolo_formatted"
-    # )
-    # object_to_class_dict = {
-    #     "WINDOW": 0,
-    #     "DOOR": 1,
-    # }
-    # window_door_yolo_labels = convert_prodigy_file(prod_file_name, object_to_class_dict, unique_images)
-    # split_save_data(
-    #     window_door_yolo_labels, eval_floorplan_urls, train_prop, test_prop, yolo_data_folder_name
-    # )
-
     # ================================================================
     print("Process room type dataset")
 
@@ -461,14 +429,16 @@ if __name__ == "__main__":
     # ================================================================
     print("Process just staircase dataset")
 
-    prodigy_labelled_dir = f"data/annotation/prodigy_labelled/{prodigy_labelled_date['window_door_staircase_dataset']}"
-    prod_file_name = os.path.join(prodigy_labelled_dir, "window_door_staircase.jsonl")
+    prodigy_labelled_dir = (
+        f"data/annotation/prodigy_labelled/{prodigy_labelled_date['staircase_dataset']}"
+    )
+    prod_file_name = os.path.join(prodigy_labelled_dir, "staircase_dataset.jsonl")
     yolo_data_folder_name = os.path.join(
         prodigy_labelled_dir, "yolo_formatted/staircase_yolo_formatted"
     )
     object_to_class_dict = {"STAIRCASE": 0}
     staircase_yolo_labels = convert_prodigy_file(
-        prod_file_name, object_to_class_dict, unique_images
+        prod_file_name, object_to_class_dict, unique_images, image_key="path"
     )
     split_save_data(
         staircase_yolo_labels,
