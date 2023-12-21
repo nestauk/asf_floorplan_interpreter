@@ -3,6 +3,7 @@ labels_to_predict:
     "ROOM",
     "WINDOW",
     "DOOR",
+    "DOUBLE_DOOR",
     "STAIRCASE",
     "KITCHEN",
     "LIVING",
@@ -12,12 +13,14 @@ labels_to_predict:
     "OTHER",
   ]
 room_model_name: "room_config_yolov8m"
-window_door_model_name: "window_door_config_yolov8m_wd"
+window_door_model_name: "window_door_types_roboflow_config_yolov8m_wd"
 staircase_model_name: "staircase_config_yolov8m"
-room_type_model_name: "room_type_config_yolov8m"
-eval_data_file: "data/annotation/evaluation/Econest_test_set_floorplans_211123.csv"
+room_type_model_name: "room_type_bw_config_yolov8m"
+eval_data_file: "data/annotation/evaluation/Econest_test_set_floorplans_211223.csv"
 hw_json_path: "data/annotation/prodigy_labelled/quality_dataset.jsonl"
 prodigy_labelled_date:
   room_dataset: "211123"
   window_door_staircase_dataset: "211123"
   room_type_from_labels_dataset: "211123"
+  staircase_dataset: "211223"
+unique_floorplan_file: "data/floorplans/unique_floorplan_urls_2023_09.json"

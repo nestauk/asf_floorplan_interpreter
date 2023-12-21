@@ -1,4 +1,4 @@
-path: "data/annotation/prodigy_labelled/211123/yolo_formatted/staircase_yolo_formatted/"
+path: "data/annotation/prodigy_labelled/211223/yolo_formatted/staircase_yolo_formatted/"
 train: images/train
 val: images/val
 test: images/test
