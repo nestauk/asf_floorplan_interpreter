@@ -1,6 +1,8 @@
 numpy
 pandas
 boto3
-ultralytics
-scikit-learn
 s3fs
+ultralytics>=8.0.191
+scikit-learn
+metaflow==2.7.14
+nesta_ds_utils@git+https://github.com/nestauk/nesta_ds_utils.git#egg=nesta_ds_utils[s3]
