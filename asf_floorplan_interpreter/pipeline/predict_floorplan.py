@@ -210,8 +210,7 @@ class FloorplanPredictor(object):
 
         # We found the results are best if the output says at least one kitchen per floorplan
         if correct_kitchen:
-            if "KITCHEN" in label_counts:
-                label_counts["KITCHEN"] = 1
+            label_counts["KITCHEN"] = 1
 
         if correct_staircase:
             if "STAIRCASE" in label_counts:
