@@ -59,12 +59,32 @@ def load_process_eval_data(eval_data_file, all_training_floorplans):
         axis=1,
     )
 
+    # Combine both the door categories in the labelled data
+    def combine_door_types(double_door, door):
+        if pd.notnull(double_door):
+            if pd.notnull(door):
+                return double_door + door
+            else:
+                return double_door
+        else:
+            if pd.notnull(door):
+                return door
+            else:
+                return None
+
+    eval_data_fresh["Dec23_alldoors"] = eval_data_fresh.apply(
+        lambda x: combine_door_types(x["Dec23_doubledoors"], x["Dec23_singledoors"]),
+        axis=1,
+    )
+
     eval_dict = (
         eval_data_fresh[
             [
                 "floorplan_url",
-                "# of doors",
-                "# of windows",
+                "Dec23_alldoors",
+                "Dec23_singledoors",
+                "Dec23_doubledoors",
+                "Dec23_windows",
                 "bedrooms.1",
                 "kitchen.1",
                 "living_room.1",
@@ -72,13 +92,16 @@ def load_process_eval_data(eval_data_file, all_training_floorplans):
                 "garage",
                 "other_both",
                 "total_rooms",
+                "Number unique staircases",
             ]
         ]
         .set_index("floorplan_url")
         .rename(
             columns={
-                "# of doors": "DOOR",
-                "# of windows": "WINDOW",
+                "Dec23_alldoors": "ALL_DOORS",
+                "Dec23_singledoors": "DOOR",
+                "Dec23_doubledoors": "DOUBLE_DOOR",
+                "Dec23_windows": "WINDOW",
                 "bedrooms.1": "BEDROOM",
                 "kitchen.1": "KITCHEN",
                 "living_room.1": "LIVING",
@@ -86,6 +109,7 @@ def load_process_eval_data(eval_data_file, all_training_floorplans):
                 "garage": "GARAGE",
                 "other_both": "OTHER",
                 "total_rooms": "ROOM",
+                "Number unique staircases": "STAIRCASE",
             }
         )
         .to_dict(orient="index")
@@ -115,7 +139,7 @@ def load_process_eval_data(eval_data_file, all_training_floorplans):
                 "kitchen": "KITCHEN",
                 "rooms": "ROOM",
                 "windows": "WINDOW",
-                "rulebased_total_doors": "DOOR",
+                "rulebased_total_doors": "ALL_DOORS",
             }
         )
         .to_dict(orient="index")
@@ -134,10 +158,10 @@ def calculate_mse_results(all_results):
         rulebased_pred = []
         for t, m, e in results:
             if pd.notnull(t):
-                if m != None:
+                if pd.notnull(m):
                     model_truth.append(t)
                     model_pred.append(m)
-                if e != None:
+                if pd.notnull(e):
                     if e != "\\N":
                         rulebased_truth.append(t)
                         rulebased_pred.append(int(e))
@@ -148,9 +172,7 @@ def calculate_mse_results(all_results):
                 "rmse": mean_squared_error(model_truth, model_pred, squared=False),
             }
             if label_key == "KITCHEN":
-                corrected_model_pred = [
-                    max(1, v) for v in model_pred
-                ]  # If there are 0 kitchens, bump it to 1
+                corrected_model_pred = [1 for v in model_pred]  # number kitchens = 1
                 mse_model_results["KITCHEN_correct"] = {
                     "n": len(model_truth),
                     "mse": mean_squared_error(model_truth, corrected_model_pred),
@@ -170,7 +192,6 @@ def calculate_mse_results(all_results):
         "rulebased_prediction_mse": mse_rule_based_results,
         "model_prediction_mse": mse_model_results,
     }
-
     return mse_results
 
 
@@ -189,15 +210,17 @@ if __name__ == "__main__":
             "ROOM",
             "WINDOW",
             "DOOR",
+            "DOUBLE_DOOR",
             "KITCHEN",
             "LIVING",
             "RESTROOM",
             "BEDROOM",
             "GARAGE",
             "OTHER",
+            "STAIRCASE",
         ]
     )
-    floorplan_pred.load()
+    floorplan_pred.load(local=True)
 
     today = datetime.now().strftime("%Y%m%d")
 
@@ -228,9 +251,12 @@ if __name__ == "__main__":
     logger.info("Predict numbers of rooms etc for each of the evaluation floorplans")
     pred_dict = {}
     pred_dict_raw = {}
-    for floorplan_url in tqdm(eval_dict.keys()):
+    for floorplan_url in tqdm(list(eval_dict.keys())):
         labels, results = floorplan_pred.predict_labels(
-            floorplan_url, correct_kitchen=False
+            floorplan_url,
+            correct_kitchen=False,
+            correct_staircase=True,
+            conf_threshold=0,
         )
         results["SUM_ROOM_TYPES"] = sum(
             [
